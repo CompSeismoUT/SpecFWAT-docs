@@ -20,11 +20,11 @@ export default function IndexPage() {
       style={{ backgroundImage: "url('/background.svg')" }}
       >
         <Image
-          src="/logo_long.svg"
+          src="/logo_long.png"
           alt="SpecFWAT Logo"
           width={500}
-          height={10}
-          className="rounded-full mx-auto"
+          height={200}
+          className="mx-auto"
         />
         <h1 className="text-4xl font-bold text-fd-foreground">
           SpecFWAT: Illuminate Refined Subsurface Structures
