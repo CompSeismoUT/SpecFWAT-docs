@@ -1,2 +1,14 @@
 .next
 node_modules
+
+# Logs
+npm-debug.log*
+yarn-debug.log* 
+yarn-error.log*
+# Build output
+dist
+
+# mac
+.DS_Store
+
+.vscode/
