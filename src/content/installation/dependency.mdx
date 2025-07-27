@@ -1,0 +1,55 @@
+import { Steps, Tabs } from 'nextra/components';
+
+# Install Dependencies
+
+SpecFWAT requires following dependencies to compile and run.
+
+#### Required Dependencies
+
+- CMake >= 3.16
+- C++/Fortran compiler (gfortran >= 9.0, ifort >= 18.0)
+- MPI library (OpenMPI >= 4.0, IntelMPI >= 2018)
+- HDF5 library (>= 1.10)
+
+#### Optional Dependencies
+
+- CUDA >= 11.0 (for GPU acceleration)
+
+## For local machine
+To install the dependencies for SpecFWAT on local machine, we recommend using the [Conda](https://docs.conda.io/projects/conda/en/stable/)/[Mamba](https://conda-forge.org/) package manager.
+
+<Steps>
+### Create a new conda environment
+
+```bash
+conda create -n fwat
+conda activate fwat
+```
+
+### Install dependencies
+
+```bash copy
+conda install -c conda-forge fortran-compiler c-compiler cmake openmpi hdf5
+```
+
+</Steps>
+
+## For High Performance Computing (HPC) system
+
+To install the dependencies for SpecFWAT on supercomputers, we recommend to load the required modules using the module system. Below show some examples of loading required modules on different HPC systems.
+
+<Tabs items={["N40@BSCC", "Niagara@CCDB"]}>
+  <Tabs.Tab>
+    *N40@BSCC* is a GPU-accelerated HPC system with Nvidia GForce RTX 4090 GPUs. The following modules are required to run SpecFWAT:
+    ```bash copy
+    module load openmpi/4.1.5_gcc11.2_ucx1.14.1_cuda11.8 cmake/3.30.0 cuda/11.8 hdf5/1.13.3
+    ```
+  </Tabs.Tab>
+  <Tabs.Tab>
+    *Niagara@CCDB* is a CPU-accelerated HPC system. The following modules are required to run SpecFWAT:
+    ```bash copy
+    module --force purge
+    module load NiaEnv/2022a intel openmpi hdf5 netcdf cmake
+    ```
+  </Tabs.Tab>
+</Tabs>

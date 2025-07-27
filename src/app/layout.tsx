@@ -8,24 +8,19 @@ import 'nextra-theme-docs/style.css'
 import '../app/globals.css'
 
 export const metadata = {
-  metadataBase: new URL('https://nextra.site'),
+  metadataBase: new URL('https://specfwat.xumijian.me'),
   title: {
     template: 'SpecfFWAT - %s',
   },
-  description: 'Nextra: the Next.js site builder',
-  applicationName: 'Nextra',
+  description: 'SpecfFWAT',
+  applicationName: 'SpecfFWAT',
   generator: 'Next.js',
   appleWebApp: {
-    title: 'Nextra'
+    title: 'SpecfFWAT'
   },
-  other: {
-    'msapplication-TileImage': '/ms-icon-144x144.png',
-    'msapplication-TileColor': '#fff'
-  },
-  twitter: {
-    site: 'https://nextra.site'
-  }
 }
+
+const EmptyComponent = () => null
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const navbar = (
@@ -44,7 +39,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       }
       // Next.js discord server
       // chatLink="https://discord.gg/hEM84NMkRv"
-      projectLink="https://github.com/CompSeismoUT/SpecFWAT-docs#"
+      projectLink="https://github.com/CompSeismoUT/SpecFWAT-docs"
     />
   )
   const pageMap = await getPageMap()
@@ -56,8 +51,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           // banner={<Banner storageKey="Nextra 2">Nextra 2 Alpha</Banner>}
           navbar={navbar}
           footer={<Footer> Mijian Xu {new Date().getFullYear()} © UofT.</Footer>}
-          editLink="Edit this page on GitHub"
-          docsRepositoryBase="https://github.com/shuding/nextra/blob/main/examples/docs"
+          editLink={<EmptyComponent />}
+          docsRepositoryBase="https://github.com/CompSeismoUT/SpecFWAT"
           sidebar={{ defaultMenuCollapseLevel: 1 }}
           pageMap={pageMap}
         >

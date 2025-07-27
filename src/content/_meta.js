@@ -1,7 +1,10 @@
 export default {
   index: '',
-  'get-started': '',
-  features: '',
+  _: {
+    type: 'separator',
+    title: 'Get Started',
+  },
+  'installation': '',
   themes: '',
   advanced: ''
 }

@@ -113,7 +113,7 @@ export default function IndexPage() {
         <p className="text-fd-muted-foreground max-w-md text-gray-500 text-opacity-70">
           SpecFWAT has been used to invert for the subsurface structure of the Earth in various regions
         </p>
-        <div className="grid grid-cols-[2fr_1fr] max-w-6xl w-full mx-auto border border-white/20 rounded-lg bg-background backdrop-blur-md shadow-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] max-w-6xl w-full mx-auto border border-white/20 rounded-lg bg-background backdrop-blur-md shadow-lg">
           <Card className="border-none shadow-none bg-transparent">
             <CardHeader className="text-left items-start">
               <CardTitle>Receiver Function Adjoint Tomography</CardTitle>
@@ -144,7 +144,7 @@ export default function IndexPage() {
             </CardContent>
           </Card>
         </div>
-        <div className="grid grid-cols-[2fr_1fr] max-w-6xl w-full mx-auto bg-background border border-white/20 rounded-lg backdrop-blur-xl shadow-lg">
+        <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] max-w-6xl w-full mx-auto border border-white/20 rounded-lg bg-background backdrop-blur-md shadow-lg">
           <Card className="border-none shadow-none bg-transparent">
             <CardHeader className="text-left items-start">
               <CardTitle>Joint Full-waveform Adjoint Tomography</CardTitle>

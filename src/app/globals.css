@@ -89,7 +89,7 @@
 
   --radius: 0.625rem;
 
-  --background: oklch(1 0 0);
+  --background: oklch(0.998 0 0);
 
   --foreground: oklch(0.129 0.042 264.695);
 
@@ -215,6 +215,15 @@
   --sidebar-border: oklch(1 0 0 / 10%);
 
   --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+pre {
+  background-color: #f1f5f9 !important; 
+
+}
+
+.dark pre {
+  background-color: #1e293b !important; 
 }
 
 @layer base {

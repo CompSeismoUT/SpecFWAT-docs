@@ -1,0 +1,108 @@
+# Build with CMake
+import { Steps, Table } from 'nextra/components';
+
+SpecFWAT is built using CMake, a cross-platform build system. The following instructions will guide you through the process of building SpecFWAT on your system.
+
+<Steps>
+  ## Create a build directory
+  ```bash copy
+  mkdir build && cd build
+  ```
+
+  ## Configure the build
+  Bascially, you can use the following command to configure the build:
+  ```bash copy
+  cmake ..
+  ```
+</Steps>
+
+
+## More options
+
+### Specfiy the compiler
+
+If you have multiple compilers installed, you can specify the Fortran and C compilers using the `FC` and `CC` options, respectively. For example on *Niagara@CCDB*:
+
+```bash copy
+CC=icc CXX=icpc FC=mpifort MPIFC=mpifort cmake ..
+```
+
+### Specfiy HDF5 library
+
+If the HDF5 library is installed in a non-standard location, you can specify the path to the HDF5 library using the `HDF5_ROOT` option. For example:
+
+```bash copy
+cmake -DHDF5_ROOT=/path/to/hdf5 ..
+```
+
+### Enable GPU support
+
+Currently, SpecFWAT only supports CUDA for GPU acceleration. The CUDA architecture can be specified using the `CUDA_ARCH` option. Check the table below for the supported architectures:
+
+<Table>
+  <thead>
+    <Table.Tr>
+      <Table.Th>Architecture</Table.Th>
+      <Table.Th>`CUDA_ARCH`</Table.Th>
+      <Table.Th>Example</Table.Th>
+    </Table.Tr>
+  </thead>
+  <tbody>
+    <Table.Tr>
+      <Table.Td>GPU on current machine</Table.Td>
+      <Table.Td>0</Table.Td>
+      <Table.Td>N/A</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>4</Table.Td>
+      <Table.Td>Tesla</Table.Td>
+      <Table.Td>K10, Geforce GTX 650</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>5</Table.Td>
+      <Table.Td>Kepler</Table.Td>
+      <Table.Td>K20</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>6</Table.Td>
+      <Table.Td>Kepler</Table.Td>
+      <Table.Td>K80</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>7</Table.Td>
+      <Table.Td>Maxwell</Table.Td>
+      <Table.Td>Geforce GTX 750, Tesla M60</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>8</Table.Td>
+      <Table.Td>Pascal</Table.Td>
+      <Table.Td>Geforce GTX 1080, Tesla P100</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>9</Table.Td>
+      <Table.Td>Volta</Table.Td>
+      <Table.Td>Tesla V4</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>10</Table.Td>
+      <Table.Td>Turing</Table.Td>
+      <Table.Td>Geforce RTX 2080, Tesla T4</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>11</Table.Td>
+      <Table.Td>Ampere</Table.Td>
+      <Table.Td>Geforce RTX 3080, Tesla A100</Table.Td>
+    </Table.Tr>
+    <Table.Tr>
+      <Table.Td>12</Table.Td>
+      <Table.Td>Hopper</Table.Td>
+      <Table.Td>Geforce RTX 4090, Tesla H100</Table.Td>
+    </Table.Tr>
+  </tbody>
+</Table>
+
+For example, to enable CUDA support and set the architecture to Ampere (A100), you can use the following command:
+
+```bash copy
+cmake -DUSE_CUDA=on -DCUDA_ARCH=11 ..
+```

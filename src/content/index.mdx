@@ -2,13 +2,25 @@ import { Bleed } from 'nextra/components'
 
 # Introduction
 
-**Nextra** is a [Next.js](https://nextjs.org) based static site generator.
+This is the documentation for SpecFWAT, a package for seismic full-waveform adjoint tonography (FWAT) based on the open-source software package [SPECFEM3D](https://specfem.org/) driven by modern Fortran. It is designed to be user-friendly and fast, allowing users to perform FWAT on supercomputer accelerated by GPUs and CPUs.
 
-It supports Markdown and React components ([MDX](/features/mdx)), automatically
-generated [sidebar and anchor links](/get-started#sidebar-and-anchor-links),
-file-system based routing, built-in syntax highlighting, image optimization,
-custom layouts, i18n, and all the features you love about Next.js.
+The SpecFWAT Intergated the typlical FWAT workflow in a 3 execuable files, which includes:
 
-Here's what you will get in 1 minute:
+1. **`xfwat_fwd_measure_adj`**: Forward simulation, adjoint source measurements and computing of adjoint wavefields.
+2. **`xfwat_post_proc`**: Taking sum of kernels, preconditioning, smoothing and weight sum of gradient for joint inversion.
+3. **`xfwat_optimize`**: Optimization of model parameters based on steepest descent, conjugate gradient or L-BFGS methods.
 
-<Bleed>![Nextra Example](/demo.png)</Bleed>
+Thus, the interaction with SpecFWAT is simple and straightforward, allowing users to focus on their seismic data and model parameters without worrying about the underlying complexities of the inversion process.
+
+```bash filename="run_fwat.sh" copy showLineNumbers
+for it in `seq 0 9`; do
+    model=`printf "M%02d" $it`
+    if [ $it -eq 0 ]; then
+        cp initial_model.h5 DATA/tomo_files/tomography_model.h5
+    fi
+    mpirun -np $NPROC ../../bin/xfwat_mesh_databases -s tele
+    mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m $model -s tele -r 3
+    mpirun -np $NPROC ../../bin/xfwat_post_proc -m $model
+    mpirun -np $NPROC ../../bin/xfwat_optimize -m $model
+done
+```
