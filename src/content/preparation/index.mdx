@@ -1,0 +1,125 @@
+import { Card, CardHeader, CardDescription, CardTitle, CardContent } from '@/components/ui/card';
+import { FileTree } from 'nextra/components'
+
+# Introduction
+
+In this section, we will introduce how to prepare data, mesh, model, parameters, and input files before SpecFWAT.
+
+<div className='grid grid-cols-2 sm:grid-cols-2 mx-auto w-full gap-4'>
+  <Card >
+    <CardHeader className="text-left items-start ">
+      **`fwat_data/`**
+      <CardDescription >
+      This directory contains the seismic data, which is used for the forward simulation and adjoint measurements.
+      </CardDescription>
+    </CardHeader>
+  </Card>
+  <Card >
+    <CardHeader className="text-left items-start ">
+      **`DATA/meshfem3D_files/`**
+      <CardDescription >
+        This directory contains the mesh files (Following Specfem3D format), which define the computational domain for the forward simulation.
+      </CardDescription>
+    </CardHeader>
+  </Card>
+  <Card >
+    <CardHeader className="text-left items-start ">
+      **`DATA/tomo_files/tomography_model.h5`**
+      <CardDescription >
+        This file contains the initial model parameters in HDF5 format, which is used for creating GLL mesh and defining the model databases for the forward simulation.
+      </CardDescription>
+    </CardHeader>
+  </Card>
+  <Card >
+    <CardHeader className="text-left items-start ">
+      **`DATA/fwat_params.yml`**
+      <CardDescription >
+        This file contains the parameters for the SpecFWAT workflow.
+      </CardDescription>
+    </CardHeader>
+  </Card>
+  <Card>
+    <CardHeader className="text-left items-start ">
+      **`DATA/Par_file`**
+      <CardDescription >
+        This file contains the parameters for the Specfem3D Solver.
+      </CardDescription>
+    </CardHeader>
+  </Card>
+  <Card >
+    <CardHeader className="text-left items-start ">
+      **`src_rec/`**
+      <CardDescription >
+        This directory contains the source and receiver files, which define the source and receiver locations and porperties.
+      </CardDescription>
+    </CardHeader>
+  </Card>
+</div>
+
+## Project Structure
+
+The `project` is a work directory organized based on Specfem3D. Thus, subdirectories of Specfem3D are inherited in SpecFWAT. Usually we conduct an inversion and execute all scripts and commands in this directory. New directories of input files `fwat_data` and `src_rec` are added to the SpecFWAT project. The following is a brief description of the directory structure of a project:
+
+<FileTree>
+  <FileTree.Folder name="project" defaultOpen>
+    {/* DATA */}
+    <FileTree.Folder name="DATA" >
+      <FileTree.Folder name="meshfem3D_files">
+        <FileTree.File name="Mesh_Par_file.$simu_type">
+        </FileTree.File>
+        <FileTree.File name="interface.dat">
+        </FileTree.File>
+        <FileTree.File name="topo.dat">
+        </FileTree.File>
+      </FileTree.Folder>
+      <FileTree.Folder name="tomo_files">
+        <FileTree.File name="tomography_model.h5">
+        </FileTree.File>
+      </FileTree.Folder>
+      <FileTree.File name="fwat_params.yml">
+      </FileTree.File>
+      <FileTree.File name="Par_file">
+      </FileTree.File>
+    </FileTree.Folder>
+  
+    {/* fwat_data */}
+    <FileTree.Folder name="fwat_data">
+      <FileTree.Folder name="event_1">
+        <FileTree.File name="net.sta.BXR.sac">
+        </FileTree.File>
+        <FileTree.File name="net.sta.BXZ.sac">
+        </FileTree.File>
+      </FileTree.Folder>
+      <FileTree.Folder name="event_2">
+        <FileTree.File name="net.sta.BXR.sac">
+        </FileTree.File>
+        <FileTree.File name="net.sta.BXZ.sac">
+        </FileTree.File>
+      </FileTree.Folder>
+    </FileTree.Folder>
+  
+    {/* src_rec */}
+    <FileTree.Folder name="src_rec">
+      <FileTree.File name="sources_noise.dat">
+      </FileTree.File>
+      <FileTree.File name="sources_tele.dat">
+      </FileTree.File>
+      <FileTree.File name="FKmodel_event_1.dat">
+      </FileTree.File>
+      <FileTree.File name="FKmodel_event_2.dat">
+      </FileTree.File>
+      <FileTree.File name="FORCESOLUTION_event_3.dat">
+      </FileTree.File>
+      <FileTree.File name="FORCESOLUTION_event_4.dat">
+      </FileTree.File>
+      <FileTree.File name="STATIONS_event_1">
+      </FileTree.File>
+      <FileTree.File name="STATIONS_event_2">
+      </FileTree.File>
+      <FileTree.File name="STATIONS_event_3">
+      </FileTree.File>
+      <FileTree.File name="STATIONS_event_4">
+      </FileTree.File>
+    </FileTree.Folder>
+  </FileTree.Folder>
+</FileTree>

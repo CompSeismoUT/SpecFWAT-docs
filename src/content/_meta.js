@@ -4,7 +4,6 @@ export default {
     type: 'separator',
     title: 'Get Started',
   },
-  'installation': '',
-  themes: '',
-  advanced: ''
+  installation: '',
+  preparation: 'Preparation',
 }

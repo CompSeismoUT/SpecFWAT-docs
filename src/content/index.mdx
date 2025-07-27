@@ -6,9 +6,11 @@ This is the documentation for SpecFWAT, a package for seismic full-waveform adjo
 
 The SpecFWAT Intergated the typlical FWAT workflow in a 3 execuable files, which includes:
 
-1. **`xfwat_fwd_measure_adj`**: Forward simulation, adjoint source measurements and computing of adjoint wavefields.
-2. **`xfwat_post_proc`**: Taking sum of kernels, preconditioning, smoothing and weight sum of gradient for joint inversion.
-3. **`xfwat_optimize`**: Optimization of model parameters based on steepest descent, conjugate gradient or L-BFGS methods.
+1. **`xfwat_mesh_databases`**: Creation of GLL mesh and model databases based on specified simulation type and regular grid model in the `DATA/tomo_files/tomography_model.h5`.
+
+2. **`xfwat_fwd_measure_adj`**: Forward simulation, adjoint source measurements and computing of adjoint wavefields.
+3. **`xfwat_post_proc`**: Taking sum of kernels, preconditioning, smoothing and weight sum of gradient for joint inversion.
+4. **`xfwat_optimize`**: Optimization of model parameters based on steepest descent, conjugate gradient or L-BFGS methods.
 
 Thus, the interaction with SpecFWAT is simple and straightforward, allowing users to focus on their seismic data and model parameters without worrying about the underlying complexities of the inversion process.
 
