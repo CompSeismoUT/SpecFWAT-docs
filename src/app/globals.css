@@ -227,7 +227,7 @@ pre {
 }
 
 .section-bg {
-  background-image: url('/background.svg');
+  background-image: url('/background-light.svg');
 }
 .dark .section-bg {
   background-image: url('/background-dark.svg');

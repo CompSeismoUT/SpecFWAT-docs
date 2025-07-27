@@ -22,9 +22,16 @@ export default function IndexPage() {
         <Image
           src="/logo_long.png"
           alt="SpecFWAT Logo"
-          width={500}
+          width={480}
           height={200}
-          className="mx-auto"
+          className="mx-auto dark:hidden"
+        />
+        <Image
+          src="/logo_long-dark.png"
+          alt="SpecFWAT Logo Dark"
+          width={480}
+          height={200}
+          className="mx-auto hidden dark:block"
         />
         <h1 className="text-4xl font-bold text-fd-foreground">
           SpecFWAT: Illuminate Refined Subsurface Structures
@@ -33,7 +40,7 @@ export default function IndexPage() {
           An easy, fast, and powerful full-waveform adjoint tomography (FWAT) tool for multiple seismic data.
         </p>
         <div className="flex gap-4 items-center max-w-xs mx-auto">
-        <Button className="bg-indigo-500 dark:bg-slate-300" size="sm" asChild>
+        <Button className="bg-slate-600 dark:bg-slate-300" size="sm" asChild>
         <Link href="/docs">  Get Started <Rocket /> </Link>
         </Button>
         <Button className='dark:bg-slate-800' size="sm" variant="outline" asChild>
@@ -106,7 +113,7 @@ export default function IndexPage() {
         </div>
       </section>
 
-      <section className="flex flex-col bg-indigo-50/70 dark:bg-slate-900 items-center gap-4 w-full py-10 ">
+      <section className="flex flex-col bg-slate-100 dark:bg-slate-900 items-center gap-4 w-full py-10 ">
         <h1 className="text-4xl font-bold tracking-tight text-fd-foreground">
           Showcases
         </h1>
@@ -125,7 +132,7 @@ export default function IndexPage() {
                 href="https://doi.org/10.1029/2023GL104077"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center text-indigo-500 hover:underline"
+                className="inline-flex items-center text-blue-700 dark:text-blue-300 hover:underline"
               >
                 learn more
               </Link>
@@ -156,7 +163,7 @@ export default function IndexPage() {
                 href="https://doi.org/10.1016/j.epsl.2024.119137"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center text-indigo-500 hover:underline"
+                className="inline-flex items-center text-blue-700 dark:text-blue-300  hover:underline"
               >
                 learn more
               </Link>
