@@ -6,6 +6,7 @@ import { getPageMap } from 'nextra/page-map'
 import Image from 'next/image'
 import 'nextra-theme-docs/style.css'
 import '../app/globals.css'
+import ThemeToggler from '@/components/ThemeToggler';
 
 export const metadata = {
   metadataBase: new URL('https://specfwat.xumijian.me'),

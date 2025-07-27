@@ -2,6 +2,7 @@
 import Image from "next/image"
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import ThemeToggler from "@/components/ThemeToggler";
 import {
   Card,
   CardAction,
@@ -16,8 +17,7 @@ import { Rocket, GitFork, Earth, LayoutGrid, Zap, Expand, Sparkles } from 'lucid
 export default function IndexPage() {
   return (
     <main className="flex flex-1 flex-col justify-center bg-muted text-center">
-      <section className="flex flex-col items-center gap-4 w-full py-50 bg-no-repeat bg-center bg-cover"
-      style={{ backgroundImage: "url('/background.svg')" }}
+      <section className="section-bg flex flex-col items-center gap-4 w-full py-50 bg-no-repeat bg-center bg-cover"
       >
         <Image
           src="/logo_long.png"
@@ -33,10 +33,10 @@ export default function IndexPage() {
           An easy, fast, and powerful full-waveform adjoint tomography (FWAT) tool for multiple seismic data.
         </p>
         <div className="flex gap-4 items-center max-w-xs mx-auto">
-        <Button className="bg-indigo-500" size="sm" asChild>
+        <Button className="bg-indigo-500 dark:bg-slate-300" size="sm" asChild>
         <Link href="/docs">  Get Started <Rocket /> </Link>
         </Button>
-        <Button className='flex-1' size="sm" variant="outline" asChild>
+        <Button className='dark:bg-slate-800' size="sm" variant="outline" asChild>
           <Link href="https://github.com/CompSeismoUT/SpecFWAT" > Fork on GitHub <GitFork /> </Link>
         </Button>
         </div>
@@ -106,7 +106,7 @@ export default function IndexPage() {
         </div>
       </section>
 
-      <section className="flex flex-col bg-indigo-50/70 items-center gap-4 w-full py-10 ">
+      <section className="flex flex-col bg-indigo-50/70 dark:bg-slate-900 items-center gap-4 w-full py-10 ">
         <h1 className="text-4xl font-bold tracking-tight text-fd-foreground">
           Showcases
         </h1>
@@ -176,6 +176,7 @@ export default function IndexPage() {
           </Card>
         </div>
       </section>
+      <ThemeToggler />
     </main>
     
   )

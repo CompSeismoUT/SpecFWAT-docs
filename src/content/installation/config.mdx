@@ -1,4 +1,4 @@
-# Build with CMake
+# Build and Compilation
 import { Steps, Table } from 'nextra/components';
 
 SpecFWAT is built using CMake, a cross-platform build system. The following instructions will guide you through the process of building SpecFWAT on your system.
@@ -105,4 +105,11 @@ For example, to enable CUDA support and set the architecture to Ampere (A100), y
 
 ```bash copy
 cmake -DUSE_CUDA=on -DCUDA_ARCH=11 ..
+```
+
+## Compilation
+After configuring the build, you can compile SpecFWAT using the following command:
+
+```bash copy
+make -j4
 ```

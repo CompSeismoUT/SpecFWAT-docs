@@ -226,6 +226,13 @@ pre {
   background-color: #1e293b !important; 
 }
 
+.section-bg {
+  background-image: url('/background.svg');
+}
+.dark .section-bg {
+  background-image: url('/background-dark.svg');
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;

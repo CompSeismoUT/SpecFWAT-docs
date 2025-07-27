@@ -29,6 +29,9 @@ importers:
       next:
         specifier: ^15.0.2
         version: 15.4.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      next-themes:
+        specifier: ^0.4.6
+        version: 0.4.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       nextra:
         specifier: ^4
         version: 4.2.17(acorn@8.15.0)(next@15.4.4(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-dom@19.1.0(react@19.1.0))(react@19.1.0)(typescript@5.8.3)
