@@ -5,6 +5,8 @@ NOISE:
   CH_CODE: BX # Channel code
   NSTEP: 4500 # Number of time steps
   DT: 0.06 # Time step for the noise data
+  IMEAS: 5
+  ITAPER: 2
   SHORT_P: [6, 10, 20] # Short period of filters
   LONG_P: [15, 25, 40] # Long period of filters
   GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity
