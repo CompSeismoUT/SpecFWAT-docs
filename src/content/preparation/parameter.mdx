@@ -54,7 +54,7 @@ NOISE:
   The time window for the adjoint source measurements is determined by the Approximated group velocity and the cut-off periods. The time window $[T_{start}, T_{end}]$ is calculated as follows:
 
   ```math
-    T_{start} = \frac{\Delta}{U_{max}}-0.5 T_{long} \\
+    T_{start} = \frac{\Delta}{U_{max}}-0.5 T_{long}
   ```
   ```math
     T_{end} = \frac{\Delta}{U_{min}}+0.5 T_{long}
@@ -83,5 +83,74 @@ NOISE:
   P_1 = \sum_{i=1}^{N} \left| \int \partial_t^2 u(x, t) \partial_t^2 u^{\dag}(x, T-t) dt \right|
 ```
 
-- `SIGMA_H`: Horizontal smoothing length in meter of gradinet.
-- `SIGMA_V`: Vertical smoothing length in meter of gradinet.
+- `SIGMA_H`: Horizontal smoothing length in meter of gradient.
+- `SIGMA_V`: Vertical smoothing length in meter of gradient.
+
+
+## `TELE` Section
+
+This section defines the parameters for the teleseismic FWAT.
+
+```yaml filename="YAML" copy
+TELE:
+  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
+  TELE_TYPE: 2 # 1: teleseismic data, 2: receiver function, 3: Teleseismic cross-convolution
+  RCOMPS: ['Z', 'R'] # Components of the receiver
+  CH_CODE: BX # Channel code
+  SAVE_FK: True # Save the FK wavefield
+  COMPRESS_LEVEL: 0
+  NSTEP: 2500 # Number of time steps
+  DT: 0.025 # Time step for the teleseismic data
+  SHORT_P: [1] # Short period of filters
+  LONG_P: [20] # Long period of filters
+  TIME_WIN: [-5, 25] # Time window for the teleseismic data
+  PRECOND_TYPE: 3 # 2: abs(Z); 3: root squared z
+  SIGMA_H: 5000
+  SIGMA_V: 5000
+  RF:
+    F0: [1.5] # Gaussian width for the RF
+    MAXIT: 200 # Maximum number of iterations
+    MINDERR: 0.001 # Minimum residual error when the RF converges
+    TSHIFT: 5.0 # Time shift before P
+```
+
+### Adjoint Source
+
+The parameters in the `TELE` section with the same name as in the `NOISE` section are similar, but with different values. The following parameters are specific to the `TELE` section:
+
+- `TELE_TYPE`: Type of objective function for teleseismic data. It can be
+  - `1` for teleseismic waveform difference ([Wang et al., 2021](https://doi.org/10.1029/2021JB021648)).
+  - `2` for receiver function difference ([Xu et al., 2023](https://doi.org/10.1029/2023GL104077)).
+  - `3` for teleseismic cross-convolution difference.
+
+- `SAVE_FK`: Set to `True` to save the FK wavefield for teleseismic data. The FK wavefield will be checked in the `LOCAL_PATH` (Set in `DATA/Par_file`) before running the forward simulation. If the FK wavefield is not found, it will be generated and saved in the `LOCAL_PATH/FK_{event_name}` directory, otherwise, it will be loaded from the existing FK wavefield directory to reduce time consumption. It will be useful for GPU acceleration.
+
+- `COMPRESS_LEVEL`: Compression level of the saved FK wavefield in hdf5 format. same as `compression_opts` in `h5py.File`. It can be set to `0` (no compression), `1` (fastest), `2`, `3`, `4`, `5`, `6`, `7`, or `9` (best compression). The default value is `0`.
+
+<Callout>
+- The FK wavefield take high disk storage space. Please check the disk space before running the forward simulation.
+- For CPU parallelization, the FK simulation will be very fast due to so many processors. Thus, it is recommended to set `SAVE_FK` to `False` for CPU parallelization.
+</Callout>
+
+- `TIME_WIN`: Time window for the teleseismic data. It is a list of two values, which are the start and end time before and after direct P arrival.
+
+- `PRECOND_TYPE`: Type of preconditioning for gradient. `2` ($P_2$) or `3` ($P_3$) are accepted value based on Z-precondition The default value is `3`.
+
+```math
+  P_2 = |x_z|
+```
+
+```math
+  P_3 = |x_z|^{1/2}
+```
+
+### Receiver function parameters
+For Receiver function adjoint tomography, the synthetic receiver function is calculated based on the iterative deconvolution method. The following parameters are used to control the receiver function inversion:
+
+- `RF.F0`: Gaussian width for the receiver function. It is a list of values, which are used to filter the data in different frequency bands.
+
+- `RF.MAXIT`: Maximum number of iterations for the receiver function inversion.
+
+- `RF.MINDERR`: Minimum residual error when the receiver function converges.
+
+- `RF.TSHIFT`: Time shift before P arrival for the receiver function inversion. It is used to align the receiver function with the direct P arrival.
