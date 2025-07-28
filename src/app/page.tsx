@@ -134,7 +134,7 @@ export default function IndexPage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-blue-700 dark:text-blue-300 hover:underline"
               >
-                learn more
+                Learn more
               </Link>
               </CardFooter>
             </CardHeader>
@@ -165,7 +165,7 @@ export default function IndexPage() {
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-blue-700 dark:text-blue-300  hover:underline"
               >
-                learn more
+                Learn more
               </Link>
               </CardFooter>
             </CardHeader>

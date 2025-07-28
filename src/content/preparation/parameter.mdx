@@ -1,1 +1,87 @@
 # Input Parameters
+import { Callout } from 'nextra/components';
+
+The SpecFWAT employs a YAML file to define the parameters for forward simulation, adjoint simulation, post-processing, and optimization. This file is typically named `fwat_params.yml` and is located in the `DATA` directory of your SpecFWAT project. Below shows section of the `fwat_params.yml` file:
+
+<Callout type="info">
+    Download a full template of `fwat_params.yml` [here](/fwat_params.yml).
+</Callout>
+
+## `NOISE` Section
+This section defines the noise parameters for the forward simulation and measurements of adjoint sources.
+
+```yaml filename="YAML" copy
+NOISE:
+  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
+  RCOMPS: ['Z'] # Components of the receiver
+  CH_CODE: BX # Channel code
+  NSTEP: 4500 # Number of time steps
+  DT: 0.06 # Time step for the noise data
+  SHORT_P: [6, 10, 20] # Short period of filters
+  LONG_P: [15, 25, 40] # Long period of filters
+  GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity
+  GROUPVEL_MAX: [3.2, 3.5, 4.0] # Approximate maximum group velocity
+  ADJ_SRC_NORM: False # Set the following to .true. to normalize adjoint sources across different bands
+  USE_NEAR_OFFSET: False # Set the following to false if use only data > 1 average wavelength
+  SUPPRESS_EGF: False # Set to .false. when the data are cross-correlation functions
+  PRECOND_TYPE: 1 # 1: inner product of acceleration
+  SIGMA_H: 5000
+  SIGMA_V: 5000
+```
+
+### Mesh Parameters
+- `MESH_PAR_FILE`: Path to the mesh parameter file with the same format as `meshfem3D`. SpecFWAT uses internal mesh generator of Specfem3D to create the mesh based on the model parameters, but allow users to specify the mesh file rathar than a fixed mesh file `DATA/meshfem3D_files/Mesh_Par_file` of Specfem3D.
+
+### Solver Parameters
+- `RCOMPS`: Components of the receiver, For tomography of isotropic media, it is usually set to `['Z']` for vertical component.
+
+- `CH_CODE`: Channel code, which is used to identify the channel in the data. It is usually set to `BX` for broadband data.
+
+- `NSTEP`: Number of time steps for the forward/adjoint simulation. It overrides the `NSTEP` in `DATA/Par_file`, which allow users to specify the number of time steps for different data types.
+
+- `DT`: Time step for the noise data, It overrides the `DT` in `DATA/Par_file`, which allow users to specify the time step for different data types.
+
+### Adjoint source
+- `SHORT_P`: Short cut-off period of filters for the adjoint source measurements. It is a list of values, which are used to filter the data in different frequency bands.
+
+- `LONG_P`: Long cut-off period of filters for the adjoint source measurements. It is a list of values with the same length as `SHORT_P`.
+
+- `GROUPVEL_MIN`: Approximate minimum group velocity to determine the time window for the adjoint source measurements. It is a list of values with the same length as `SHORT_P`.
+
+- `GROUPVEL_MAX`: Approximate maximum group velocity to determine the time window for the adjoint source measurements. It is a list of values with the same length as `SHORT_P`.
+
+<Callout type="default">
+  The time window for the adjoint source measurements is determined by the Approximated group velocity and the cut-off periods. The time window $[T_{start}, T_{end}]$ is calculated as follows:
+
+  ```math
+    T_{start} = \frac{\Delta}{U_{max}}-0.5 T_{long} \\
+  ```
+  ```math
+    T_{end} = \frac{\Delta}{U_{min}}+0.5 T_{long}
+  ```
+</Callout>
+
+- `ADJ_SRC_NORM`: Set to `True` to normalize the adjoint sources across different bands.
+
+- `USE_NEAR_OFFSET`: Set to `False` if you want to use only data with distance greater than 0.5 * wavelength in each period band. It is usually set to `False` for in practice.
+
+- `SUPPRESS_EGF`: Whether calculate difference to obtain empirical Green's functions (EGF). Set to `False` if the data are cross-correlation functions. 
+
+<Callout type="default">
+  For checkerboard test, please note that the data are EGF and the `SUPPRESS_EGF` should be set to `True`.
+</Callout>
+
+### Post-processing parameters of noise data
+
+- `PRECOND_TYPE`: Type of preconditioning for gradient. `0` ($P_0$) or `1` ($P_1$) are accepted value based on inner product of acceleration, The default value is `1`.
+
+```math
+  P_0 = \left| \sum_{i=1}^{N} \int \partial_t^2 u(x, t) \partial_t^2 u^{\dag}(x, T-t) dt \right|
+```
+
+```math
+  P_1 = \sum_{i=1}^{N} \left| \int \partial_t^2 u(x, t) \partial_t^2 u^{\dag}(x, T-t) dt \right|
+```
+
+- `SIGMA_H`: Horizontal smoothing length in meter of gradinet.
+- `SIGMA_V`: Vertical smoothing length in meter of gradinet.

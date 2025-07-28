@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardDescription, CardTitle, CardContent } from '@/components/ui/card';
 import { FileTree } from 'nextra/components'
+import Link from 'next/link';
 
 # Introduction
 
@@ -30,14 +31,16 @@ In this section, we will introduce how to prepare data, mesh, model, parameters,
       </CardDescription>
     </CardHeader>
   </Card>
-  <Card >
-    <CardHeader className="text-left items-start ">
-      **`DATA/fwat_params.yml`**
-      <CardDescription >
-        This file contains the parameters for the SpecFWAT workflow.
-      </CardDescription>
-    </CardHeader>
-  </Card>
+  <Link href="/docs/preparation/parameter" className="block h-full">
+    <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
+      <CardHeader className="text-left items-start">
+        **`DATA/fwat_params.yml`**
+        <CardDescription >
+          This file contains the parameters for the SpecFWAT workflow.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
   <Card>
     <CardHeader className="text-left items-start ">
       **`DATA/Par_file`**
