@@ -41,7 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       }
       // Next.js discord server
       // chatLink="https://discord.gg/hEM84NMkRv"
-      projectLink="https://github.com/CompSeismoUT/SpecFWAT-docs"
+      projectLink="https://github.com/CompSeismoUT/SpecFWAT"
     />
   )
   const pageMap = await getPageMap()
