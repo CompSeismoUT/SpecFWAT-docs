@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardDescription, CardTitle, CardContent } from '@/components/ui/card';
-import { FileTree } from 'nextra/components'
+import { FileTree, Callout } from 'nextra/components'
 import Link from 'next/link';
 
 # Introduction
@@ -58,6 +58,47 @@ In this section, we will introduce how to prepare data, mesh, model, parameters,
     </CardHeader>
   </Card>
 </div>
+
+
+## Glossary
+
+The SpecFWAT has a few key terms that are used throughout the documentation. Some values of these keys are used as the command line arguments for the SpecFWAT executables and used to define suffixes of input and output files. The following is a list of the key terms and their meanings:
+
+### 1. `simu_type`
+  The `simu_type` is a key term that defines simulation type. It can take the following values:
+  - `noise`
+  - `tele`
+
+<Callout>
+  The `simu_type` will be used in following cases:
+  - As a command line argument `-s` after the **`xfwat_mesh_databases`** and **`xfwat_fwd_measure_adj`**. 
+  - For joint inversion, as a suffix to define the path of databases and sum of kernels .
+    * The database path will be `{LOCAL_PATH}/{simu_type}`
+    * The sum of kernels will be `output/SUM_KERNELS_{simu_type}`
+
+  The `LOCAL_PATH` is the parameter defined in *Par_file*.
+</Callout>
+
+### 2. `dat_type`
+
+  The `dat_type` is a key term that defines the data type for the source and receiver files. It can take the following values:
+  
+  ##### For `simu_type = noise`
+    - `noise`: Ambient noise data
+
+  ##### For `simu_type = tele`
+    - `tele`: Teleseismic waveform
+    - `rf`: Receiver function waveform
+    - `telecc`: Teleseismic cross-convolution
+
+<Callout>
+  The `dat_type` will be used to define the suffix of source list file in `src_rec/` directory, such as `sources_noise.dat`, `sources_tele.dat`, `sources_rf.dat`, and `sources_telecc.dat`.
+
+  For teleseismic FWAT, the `TELE_TYPE` in *fwat_params.yml* will be used to define the `dat_type` for the source list files. See [teleseismic parameters](../docs/preparation/parameter#adjoint-source-1) for more details.
+</Callout>
+
+### 3. `model`
+  The `model` is a key term to define model name of each iteration in the inversion process. It is usually a string with the format `MXX`, where `XX` is two-bit integer number representing the iteration number. For example, `M00`, `M01`, ..., `M09`.
 
 ## Project Structure
 
