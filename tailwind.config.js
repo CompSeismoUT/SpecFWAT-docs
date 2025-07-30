@@ -28,6 +28,9 @@ module.exports = {
         xl: 'var(--radius-xl)',
       },
     },
+    fontSize: {
+      base: '1rem', // 即 16px，确保这个是标准值
+    },
   },
   plugins: [],
 }

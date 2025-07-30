@@ -7,6 +7,7 @@ import Image from 'next/image'
 import 'nextra-theme-docs/style.css'
 import '../app/globals.css'
 import ThemeToggler from '@/components/ThemeToggler';
+import 'katex/dist/katex.min.css'
 
 export const metadata = {
   metadataBase: new URL('https://specfwat.xumijian.me'),
@@ -40,7 +41,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       }
       // Next.js discord server
       // chatLink="https://discord.gg/hEM84NMkRv"
-      projectLink="https://github.com/CompSeismoUT/SpecFWAT-docs"
+      projectLink="https://github.com/CompSeismoUT/SpecFWAT"
     />
   )
   const pageMap = await getPageMap()
@@ -54,7 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           footer={<Footer> Mijian Xu {new Date().getFullYear()} © UofT.</Footer>}
           editLink={<EmptyComponent />}
           docsRepositoryBase="https://github.com/CompSeismoUT/SpecFWAT"
-          sidebar={{ defaultMenuCollapseLevel: 1 }}
+          // sidebar={{ defaultMenuCollapseLevel: 2 }}
           pageMap={pageMap}
         >
           {children}
