@@ -1,5 +1,5 @@
 export default {
-  index: '',
+  index: 'Top Page',
   _: {
     type: 'separator',
     title: 'Get Started',
