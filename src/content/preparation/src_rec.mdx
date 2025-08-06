@@ -1,0 +1,84 @@
+# Sources and receivers
+
+import { Callout } from 'nextra/components';
+
+The `src_rec/` directory in the `project` contains input files for defining sources and receivers FWAT.
+
+## Source list
+
+The source list is used to define the sources for the FWAT. The source file name should be `sources_${dat_type}.dat`, where `${dat_type}` is the simulation type, such as `noise` for ambient noise tomography, `tele` for teleseismic tomography or `rf` for receiver function adjoint tomography. The source list file contains the following columns:
+
+- `event_name`: The name of the event, which is used to define the source and receiver file name.
+- `event_lat`: The latitude or Y coordinate of the event in degrees.
+- `event_lon`: The longitude or X coordinate of the event in degrees.
+- `event_depth`: The depth of the event.
+- `event_buried`: The buried depth of the event.
+- `event_weight`: The weight of the event, which is applied to objective function and adjoint source.
+
+<Callout>
+For teleseismic tomography, the `event_lat`, `event_lon`, `event_depth` and `event_buried` are not used due to the definition of back-azimuth and take-off angle of the injected plane wave, but they are required for the source list file format. 
+</Callout>
+
+## Source files
+
+Different simulation types require different source files in the `src_rec/` directory. Below are the source files for different simulation types:
+
+### Ambient Noise Tomography
+For ambient noise adjoint tomography, the force solution is used as the source. the source file name should be `FORCESOLTION_${event_name}` and the format is the same as that in Specfem3D.
+
+```plaintext
+FORCE  001
+time shift:     0.0000
+f0:             0.5
+latorUTM:       -0.8209138629358446
+longorUTM:      -0.820465815889425
+depth:          0.0000
+source time function:            0
+factor force source:             1.d15
+component dir vect source E:     0.d0
+component dir vect source N:     0.d0
+component dir vect source Z_UP:  1.d0
+```
+
+### Teleseismic Tomography
+
+The plane wave will be injected into SEM domain for teleseismic simulation, including teleseismic and receiver function adjoint tomography. Frequency-wavenumber (FK) will be used to calculate the injection plane wave. The `FKmodel_${event_name}` file is used to define the FK model for the teleseismic source. 
+
+```plaintext
+# 
+#  input file for embedded FK modeiling 
+#
+#  for each layer we give : 
+#  LAYER ilayer rho vp vs ztop
+#  the last layer is the homogeneous half space 
+#
+#
+# model description  ---------------------
+NLAYER             2
+LAYER 1 2625. 6375. 3750. 0
+LAYER 2 3136. 7616. 4480. -40000.
+#----------------------------------------
+# incident wave p or sv 
+INCIDENT_WAVE      p
+#----------------------------------------
+# anlges of incomming wave
+BACK_AZIMUTH           0
+TAKE_OFF               27.191115158518674
+#----------------------------------------
+FREQUENCY_MAX      0.55
+#----------------------------------------
+TIME_WINDOW      200.
+#----------------------------------------
+# optional 
+# ORIGIN_WAVEFRONT  299673.1 22116.76 -150000.
+# ORIGIN_TIME 0.
+```
+
+## Receiver files
+
+The receiver files are used to define the receivers locations for the FWAT. The receiver file name should be `STATIONS_${event_name}` and the format is the same as that in Specfem3D. The file contains 6 columns: station station, network, latitude, longitude, elevation, and buried depth. Below is an example of the receiver file:
+
+```plaintext
+ST000 MX -0.20 0.40 0.00 0.00
+ST001 MX -0.20 0.50 0.00 0.00
+```

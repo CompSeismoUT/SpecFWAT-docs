@@ -43,7 +43,7 @@ In this section, we will introduce how to prepare data, mesh, model, parameters,
       </CardHeader>
     </Card>
   </Link>
-  <Card>
+  <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
     <CardHeader className="text-left items-start ">
       **`DATA/Par_file`**
       <CardDescription >
@@ -51,14 +51,16 @@ In this section, we will introduce how to prepare data, mesh, model, parameters,
       </CardDescription>
     </CardHeader>
   </Card>
-  <Card >
-    <CardHeader className="text-left items-start ">
-      **`src_rec/`**
-      <CardDescription >
-        This directory contains the source and receiver files, which define the source and receiver locations and porperties.
-      </CardDescription>
-    </CardHeader>
-  </Card>
+  <Link href="/docs/preparation/src_rec" className="block h-full">
+    <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
+      <CardHeader className="text-left items-start ">
+        **`src_rec/`**
+        <CardDescription >
+          This directory contains the source and receiver files, which define the source and receiver locations and porperties.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
 </div>
 
 
@@ -101,6 +103,9 @@ The SpecFWAT has a few key terms that are used throughout the documentation. Som
 
 ### 3. `model`
   The `model` is a key term to define model name of each iteration in the inversion process. It is usually a string with the format `MXX`, where `XX` is two-bit integer number representing the iteration number. For example, `M00`, `M01`, ..., `M09`.
+
+### 4. `event_name`
+  The `event_name` is a key term to define the event name for each seismic event. It is usually a string with the format `event_XXX`, where `XXX` is a string of event identifier. For example, `event_001`, `event_KW.MX001`, `event_20210101_123456` etc.
 
 ## Project Structure
 
