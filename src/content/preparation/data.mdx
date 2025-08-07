@@ -1,0 +1,29 @@
+# Waveform data
+
+import { Callout } from 'nextra/components'
+
+## File Structure
+The waveform data is stored in the `fwat_data/` directory. The waveform data is organized by event, and each event has its own subdirectory `fwat_data/${event_name}/`. The waveform data files are in SAC format, and the file name should be in the format of
+
+- `net.sta.BX?.sac`: in teleseismic and ambient noise tomography;
+- `net.sta.BXR.F${gaus}.rf.sac`: in receiver function adjoint tomography;
+
+where `net` is the network code, `sta` is the station code, and `BX?` is the component code (e.g., `BXR` for radial component, `BXZ` for vertical component), which are set in the `DATA/fwat_prams.yml`: `RCOMPS`. The `gaus` is the Gaussian width of the receiver function in 1 bit float format (e.g., 0.5, 1.0, and 2.0), which should be the same as in `DATA/fwat_params.yml`: `F0`.
+
+
+## SAC Headers
+
+Some SAC headers are required to be set in the waveform data files. The following headers are required:
+
+### For All Simulation Types
+- `b`: Beginning time of the waveform data in seconds.
+- `baz`: Back-azimuth of the event in degrees.
+- `dist`: Epicentral distance in kilometers.
+
+<Callout>
+The `dist` dose not need to be set for receiver function adjoint tomography.
+</Callout>
+
+### Additional Headers for Teleseismic Tomography
+- `t0`: The arrival time of the first P wave in seconds.
+
