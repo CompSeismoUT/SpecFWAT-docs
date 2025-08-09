@@ -1,9 +1,15 @@
 export default {
   index: 'Top Page',
-  _: {
+  _1: {
     type: 'separator',
     title: 'Get Started',
   },
-  installation: '',
+  installation: 'installation',
   preparation: 'Preparation',
+
+  _2: {
+    type: 'separator',
+    title: 'Examples',
+  },
+  toy_examples: 'Toy Examples',
 }

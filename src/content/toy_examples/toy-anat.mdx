@@ -1,0 +1,231 @@
+# Toy example of Ambient Noise Adjoint Tomography
+
+import { Callout, Steps } from 'nextra/components'
+
+This is a toy example of Ambient Noise Adjoint Tomography (ANAT) using the SpecFWAT package. It demonstrates how to set up a simple 3-D model, generate synthetic data, and perform the inversion process.
+
+<Callout type='info'>
+Access this example at [SpecFWAT/tests/toy_example_noise](https://github.com/CompSeismoUT/SpecFWAT/tree/main/tests/toy_example_noise)
+</Callout>
+
+
+## Define study region and mesh
+
+The `./DATA/meshfem3D_files/Mesh_Par_file` is used to define the study region and mesh parameters. The file contains parameters such as latitude, longitude, depth, and UTM projection zone.
+
+```
+LATITUDE_MIN                    = -1.0
+LATITUDE_MAX                    =  1.0
+LONGITUDE_MIN                   = -1.0
+LONGITUDE_MAX                   =  1.0
+DEPTH_BLOCK_KM                  = 32.0
+UTM_PROJECTION_ZONE             = 30
+SUPPRESS_UTM_PROJECTION         = .false.
+```
+In this example, we define a 2x2 degree area centered at the origin with a depth of 32 km. The UTM projection zone is set to 30.
+
+## Generate initial and target model
+Here we create a simple 1-D model as the initial model and 3-D model with a 2x2x2 checkerboard pattern as the target model. The model is defined in a 3-D grid.
+
+
+```python filename="python" copy
+import numpy as np
+from pyfwat.pario import readpar
+from pyproj import Proj
+import h5py
+import matplotlib.pyplot as plt
+import pandas as pd
+```
+
+
+### Generate regular grid on UTM coordinates
+
+This example use UTM coordinates due to `SUPPRESS_UTM_PROJECTION` set to `.false.`. Thus, we need to convert geographic coordinates (latitude and longitude) to UTM coordinates using the `pyproj` library. We then create a regular grid with a spacing of 2 km in the horizontal direction and 1 km in the vertical direction.
+
+```python filename="python" copy
+# read mesh parameters
+lat_min = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LATITUDE_MIN')
+lat_max = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LATITUDE_MAX')
+lon_min = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LONGITUDE_MIN')
+lon_max = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LONGITUDE_MAX')
+dep_max = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'DEPTH_BLOCK_KM')
+
+# Get geographic coordinates and convert to UTM
+zmax = 0
+zmin = -dep_max*1000
+zone = int(readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'UTM_PROJECTION_ZONE'))
+geo2utm = Proj(proj='utm', zone=zone, ellps='WGS84')
+xmin1, ymin1 = geo2utm(lon_min, lat_min)
+xmin2, ymin2 = geo2utm(lon_min, lat_max)
+xmin = min(xmin1, xmin2)
+xmax1, ymax1 = geo2utm(lon_max, lat_min)
+xmax2, ymax2 = geo2utm(lon_max, lat_max)
+xmax = max(xmax1, xmax2)
+xmin1, ymin1 = geo2utm(lon_min, lat_min)
+xmin2, ymin2 = geo2utm(lon_max, lat_min)
+ymin = min(ymin1, ymin2)
+xmax1, ymax1 = geo2utm(lon_min, lat_max)
+xmax2, ymax2 = geo2utm(lon_max, lat_max)
+ymax = max(ymax1, ymax2)
+
+# Create axis for regular grid
+dh = 2000
+x = np.arange(xmin, xmax+dh, dh)
+y = np.arange(ymin, ymax+dh, dh)
+dz = 1000
+z = np.arange(zmin, zmax+dz, dz)
+```
+
+
+### Create initial model
+
+First, We define a function to compute the P-wave velocity (`vp`) and density (`rho`) from the S-wave velocity (`vs`).
+
+```python filename="python" copy
+def get_vp_rho(vs):
+    vp = 0.9409 + 2.0947*vs - 0.8206*vs**2 + 0.2683*vs**3 - 0.0251*vs**4
+    rho = 1.6612*vp - 0.4721*vp**2 + 0.0671*vp**3 - 0.0043*vp**4 + 0.000106*vp**5
+    # vs = 0.7858 - 1.2344*vp + 0.7949*vp**2 - 0.1238*vp**3 + 0.0064*vp**4
+    return vp, rho
+```
+
+Then we create a 1-D initial model with a linear increase of S-wave velocity from 3.3 km/s at the surface to 4.0 km/s at 27 km depth and a constant S-wave velocity of 4.0 km/s below 27 km depth.
+
+```python filename="python" copy
+vsmin, vsmax = 3.3, 4.0
+vs = np.zeros((len(x), len(y), len(z)))
+idx = np.where(z >= -27000)[0]
+vs[:, :, idx] = np.linspace(vsmin, vsmax, len(idx))[::-1][np.newaxis, np.newaxis, :]
+vs[:, :, z < -27000] = vsmax
+vp, rho = get_vp_rho(vs)
+```
+
+Finally, we save the initial model to an HDF5 file: `initial_model.h5`.
+
+```python filename="python" copy
+with h5py.File('initial_model.h5', 'w') as f:
+    f.create_dataset('x', data=x)
+    f.create_dataset('y', data=y)
+    f.create_dataset('z', data=z)
+    f.create_dataset('vp', data=vp*1000)
+    f.create_dataset('vs', data=vs*1000)
+    f.create_dataset('rho', data=rho*1000)
+```
+
+### Create target model
+We create a 3-D checkerboard pattern for the target model by adding 2x2x2 perturbations to the initial model. The perturbations are defined as a sine function in the horizontal direction and a cosine function in the vertical direction.
+
+```python filename="python" copy
+# create checkerboard model
+limh = 40000
+limz = [-30000, 0]
+n_pert_x = 2
+n_pert_y = 2
+n_pert_z = 2
+pertv = 0.12
+
+x_pert = np.zeros_like(x)
+ntaper_left, ntaper_right = create_taper(x[0]+limh, x[-1]-limh, x)
+x_pert[ntaper_left:x.size-ntaper_right] = \
+            np.sin(n_pert_x*np.pi*np.arange(x.size-(ntaper_left+ntaper_right))/ \
+            (x.size-(ntaper_left+ntaper_right)))
+print('size of anomaly:', (x[-1]-x[0]-2*limh)/n_pert_x)
+
+y_pert = np.zeros_like(y)
+ntaper_left, ntaper_right = create_taper(y[0]+limh, y[-1]-limh, y)
+y_pert[ntaper_left:y.size-ntaper_right] = \
+            np.sin(n_pert_y*np.pi*np.arange(y.size-(ntaper_left+ntaper_right))/ \
+            (y.size-(ntaper_left+ntaper_right)))
+print('size of anomaly:', (y[-1]-y[0]-2*limh)/n_pert_y)
+
+z_pert = np.zeros_like(z)
+ntaper_left, ntaper_right = create_taper(limz[0], limz[1], z)
+z_pert[ntaper_left:z.size-ntaper_right] = \
+            np.sin(n_pert_z*np.pi*np.arange(z.size-(ntaper_left+ntaper_right))/ \
+            (z.size-(ntaper_left+ntaper_right)))
+print('size of anomaly:', (limz[1]-limz[0])/n_pert_z)
+
+xx, yy, zz = np.meshgrid(x_pert, y_pert, z_pert, indexing='ij')
+pert = xx*yy*zz*pertv
+vs_pert = vs*(1+pert)
+vp_pert, rho_pert = get_vp_rho(vs_pert)
+
+```
+
+Finally, we save the target model to an HDF5 file: `target_model.h5`.
+
+```python filename="python" copy
+with h5py.File('target_model.h5', 'w') as f:
+    f.create_dataset('x', data=x)
+    f.create_dataset('y', data=y)
+    f.create_dataset('z', data=z)
+    f.create_dataset('vp', data=vp_pert*1000)
+    f.create_dataset('vs', data=vs_pert*1000)
+    f.create_dataset('rho', data=rho_pert*1000)
+```
+
+## Setup sources and receivers
+
+We set up 49 receivers in a 7x7 grid with a spacing of 0.5 degrees and 9 sources in a 3x3 grid with a spacing of 1 degree. The sources and receivers are defined in UTM coordinates and then geographic coordinates for Specfem3D format.
+
+### Setup receiver and source template
+
+```python filename="python" copy
+lim = 20000
+nrec = 7
+nsrc = 3
+sta = []
+utm2geo = Proj(proj='latlong', zone=zone, datum='WGS84')
+for j, sty in enumerate(np.linspace(ymin+lim, ymax-lim, nrec)):
+    for i, stx in enumerate(np.linspace(xmin+lim, xmax-lim, nrec)):
+        stnm = 'ST{:03d}'.format(j*nrec+i+1)
+        stlo, stla = geo2utm(stx, sty, inverse=True)
+        sta.append([stnm, 'MX', stla, stlo, 0.0, 0.0])
+sta = pd.DataFrame(sta, columns=['stnm', 'net', 'lat', 'lon', 'elev', 'buried'])
+
+src = []
+ratio = nsrc//nrec+1
+for j, sy in enumerate(np.linspace(ymin+lim, ymax-lim, nsrc)):
+    for i, sx in enumerate(np.linspace(xmin+lim, xmax-lim, nsrc)):
+        evnm = 'ST{:03d}'.format(j*ratio*nrec+i*ratio+1)
+        evlo, evla = geo2utm(sx, sy, inverse=True)
+        src.append([f'MX.{evnm}', evla, evlo, 0.0, 0.0, 1.0])
+src = pd.DataFrame(src, columns=['event_name', 'event_lat', 'event_lon', 'event_depth', 'event_buried', 'event_weight'])
+```
+
+### Save receivers for each source
+
+We save the receivers for each source in a separate file in the `src_rec/STATIONS_${event_name}`. See [Sources and receivers](/docs/preparation/src_rec) section for details.
+
+```python filename="python" copy
+for i, row in src.iterrows():
+    staname = row['event_name'].split('.')[1]
+    sta_copy = sta[sta_copy['stnm'] != staname]
+    sta_copy.to_csv(f'src_rec/STATIONS_{row['event_name']}', sep=' ', index=False, header=False)
+```
+
+### Save source list
+We save the source list in the `src_rec/sources_noise.dat` file. See [Source list](/docs/preparation/src_rec#source-list) section for details.
+
+```python filename="python" copy
+src.to_csv('src_rec/sources_noise.dat', sep=' ', index=False, header=False)
+```
+
+## Visualize the model
+
+We can visualize the target models and source and receiver locations using `matplotlib`. Below is an example of 2-D slice at 20 km.
+
+```python filename="python" copy
+dep = -20000
+iz = np.argmin(np.abs(z - dep))
+plt.figure()
+plt.pcolor(x, y, pert[:, :, iz].T, cmap='bwr_r')
+plt.colorbar(label='perturbation')
+plt.gca().set_aspect('equal')
+stxx, styy = geo2utm(sta.lon, sta.lat)
+plt.plot(stxx, styy, 'ro')
+evxx, evyy = geo2utm(src.event_lon, src.event_lat)
+plt.plot(evxx, evyy, 'bo')
+```
+
+![](/toy-anat-target.png)
