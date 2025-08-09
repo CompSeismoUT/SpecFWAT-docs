@@ -211,7 +211,7 @@ We save the source list in the `src_rec/sources_noise.dat` file. See [Source lis
 src.to_csv('src_rec/sources_noise.dat', sep=' ', index=False, header=False)
 ```
 
-## Visualize the model
+## Visualize the target model
 
 We can visualize the target models and source and receiver locations using `matplotlib`. Below is an example of 2-D slice at 20 km.
 
@@ -229,3 +229,45 @@ plt.plot(evxx, evyy, 'bo')
 ```
 
 ![](/toy-anat-target.png)
+
+## Generate synthetic data
+To generate synthetic data, we need to run the forward simulation using SpecFWAT. Run `00_forward.sh` to generate synthetic data for the target model. The synthetic data is saved in the `fwat_data` folder.
+
+```bash filename="00_forward.sh" copy showLineNumbers
+#!/bin/bash
+set -e
+
+mkdir -p DATABASES_MPI
+mkdir -p OUTPUT_FILES
+
+NPROC=`grep ^NPROC DATA/Par_file | grep -v -E '^[[:space:]]*#' | cut -d = -f 2 | cut -d \# -f 1`
+
+cp target_model.h5 DATA/tomo_files/tomography_model.h5
+# Run Forward to generate data
+mpirun -np $NPROC ../../bin/xfwat_mesh_databases -s noise
+mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m M00 -s noise -r 1
+
+```
+
+## Conduct the inversion
+Run `01_run_this_test.sh` to perform the inversion process with 6 iterations.
+
+```bash filename="01_run_this_test.sh" copy showLineNumbers
+#!/bin/bash
+set -e
+
+NPROC=`grep ^NPROC DATA/Par_file | grep -v -E '^[[:space:]]*#' | cut -d = -f 2 | cut -d \# -f 1`
+
+# Run Inversion
+
+for it in `seq 0 5`; do
+    MODEL=`printf "M%02d" $it`
+    if [ $it -eq 0 ]; then
+        cp initial_model.h5 DATA/tomo_files/tomography_model.h5
+    fi
+    mpirun -np $NPROC ../../bin/xfwat_mesh_databases -s noise
+    mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m $MODEL -s noise -r 3
+    mpirun -np $NPROC ../../bin/xfwat_post_proc -m $MODEL
+    mpirun -np $NPROC ../../bin/xfwat_optimize -m $MODEL
+done
+```
