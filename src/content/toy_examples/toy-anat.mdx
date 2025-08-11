@@ -30,13 +30,16 @@ Here we create a simple 1-D model as the initial model and 3-D model with a 2x2x
 
 ```python filename="python" copy
 import numpy as np
-from pyfwat.pario import readpar
+from pyfwat.pario import readpar, chpar
 from pyproj import Proj
 import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
 ```
 
+<Callout type='info'>
+The [`pyfwat`](https://github.com/xumi1993/pyfwat) is a Python package for preparation and post-processing of SpecFWAT data and model. It provides functions to read, write and change parameters.
+</Callout>
 
 ### Generate regular grid on UTM coordinates
 
@@ -184,7 +187,7 @@ for j, sty in enumerate(np.linspace(ymin+lim, ymax-lim, nrec)):
 sta = pd.DataFrame(sta, columns=['stnm', 'net', 'lat', 'lon', 'elev', 'buried'])
 
 src = []
-ratio = nsrc//nrec+1
+ratio = nrec//nsrc+1
 for j, sy in enumerate(np.linspace(ymin+lim, ymax-lim, nsrc)):
     for i, sx in enumerate(np.linspace(xmin+lim, xmax-lim, nsrc)):
         evnm = 'ST{:03d}'.format(j*ratio*nrec+i*ratio+1)
@@ -200,7 +203,7 @@ We save the receivers for each source in a separate file in the `src_rec/STATION
 ```python filename="python" copy
 for i, row in src.iterrows():
     staname = row['event_name'].split('.')[1]
-    sta_copy = sta[sta_copy['stnm'] != staname]
+    sta_copy = sta[sta['stnm'] != staname]
     sta_copy.to_csv(f'src_rec/STATIONS_{row['event_name']}', sep=' ', index=False, header=False)
 ```
 
@@ -209,6 +212,32 @@ We save the source list in the `src_rec/sources_noise.dat` file. See [Source lis
 
 ```python filename="python" copy
 src.to_csv('src_rec/sources_noise.dat', sep=' ', index=False, header=False)
+```
+
+### Write `FORCESOLUTION` file
+
+The `FORCESOLUTION` file is used to specify the source time function and source locations for Specfem3D. We create a file `FORCESOLUTION_${event_name}` in the `src_rec` folder with the source information. See [Source files](/docs/preparation/src_rec#source-files) section for details.
+
+```python filename="python" copy
+# write FORCESOLUTION files
+solution = '''
+FORCE  001
+time shift:     0.0000
+f0:             0.5
+latorUTM:       0.0
+longorUTM:      0.0
+depth:          0.0000
+source time function:            0
+factor force source:             1.d15
+component dir vect source E:     0.d0
+component dir vect source N:     0.d0
+component dir vect source Z_UP:  1.d0
+'''
+for i, row in src.iterrows():
+    with open(f'src_rec/FORCESOLUTION_{row["event_name"]}', 'w') as f:
+        solution_ev = chpar(solution, 'latorUTM', row['event_lat'], type='solution')
+        solution_ev = chpar(solution_ev, 'longorUTM', row['event_lon'], type='solution')
+        f.write(solution_ev)
 ```
 
 ## Visualize the target model
