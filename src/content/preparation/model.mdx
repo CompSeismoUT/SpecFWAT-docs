@@ -1,0 +1,30 @@
+# Model Parameters
+
+## Regular grid model
+SpecFWAT requires model file with regular grid in `hdf5` format. The model file should contain the following fields in common for all model types:
+
+- `x`: 1D array of x coordinates (in meters)
+- `y`: 1D array of y coordinates (in meters)
+- `z`: 1D array of z coordinates (in meters)
+
+### Isotropic model
+For isotropic model, the model file should contain the following fields with the same shape as the 1D array defined by `x`, `y`, and `z`:
+- `vp`: 3D array of P-wave velocity (in m/s)
+- `vs`: 3D array of S-wave velocity (in m/s)
+- `rho`: 3D array of density (in kg/m^3)
+
+### Azimuthal anisotropic model
+For azimuthal anisotropic model, the model file should contain the following fields with the same shape as the 1D array defined by `x`, `y`, and `z`:
+- `vp`: 3D array of P-wave velocity along vertical direction (in m/s)
+- `vs`: 3D array of S-wave velocity along vertical direction (in m/s)
+- `rho`: 3D array of density (in kg/m^3)
+- `gcp`: 3D array of $cos(2\theta)$ component of $\rho Vp^2$
+- `gsp`: 3D array of $sin(2\theta)$ component of $\rho Vs^2$
+
+### Radial anisotropic model (under development)
+
+
+## Path to Model file
+The model file name should be `tomography_model.h5` in the `DATA/${TOMOGRAPHY_PATH}/` directory, where `TOMOGRAPHY_PATH` is defined in the `DATA/Par_file` file. The default value of `${TOMOGRAPHY_PATH}` is `tomo_files`.
+
+To generate mesh and databases from this model file, please change `MODEL` parameter in `DATA/Par_file` to the `external`. the `MODEL_TYPE` parameter in `DATA/fwat_params.yml` should be set to `1` for isotropic model, `2` for azimuthal anisotropic model.

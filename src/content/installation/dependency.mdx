@@ -34,6 +34,13 @@ conda install -c conda-forge fortran-compiler c-compiler cmake openmpi hdf5 lapa
 
 </Steps>
 
+### (Optional) Install CUDA for GPU acceleration
+If you want to use GPU acceleration, Please install [Nvidia driver](https://www.nvidia.com/en-us/drivers/) and [CUDA toolkit](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/). Confirm the installation by running
+
+```bash copy
+nvcc --version
+```
+
 ## For High Performance Computing (HPC) system
 
 To install the dependencies for SpecFWAT on supercomputers, we recommend to load the required modules using the module system. Below show some examples of loading required modules on different HPC systems.

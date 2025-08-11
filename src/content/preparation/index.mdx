@@ -19,22 +19,26 @@ In this section, we will introduce how to prepare data, mesh, model, parameters,
       </CardHeader>
     </Card>
   </Link>
-  <Card >
-    <CardHeader className="text-left items-start ">
-      **`DATA/meshfem3D_files/`**
-      <CardDescription >
-        This directory contains the mesh files (Following Specfem3D format), which define the computational domain for the forward simulation.
-      </CardDescription>
-    </CardHeader>
-  </Card>
-  <Card >
-    <CardHeader className="text-left items-start ">
-      **`DATA/tomo_files/tomography_model.h5`**
-      <CardDescription >
-        This file contains the initial model parameters in HDF5 format, which is used for creating GLL mesh and defining the model databases for the forward simulation.
-      </CardDescription>
-    </CardHeader>
-  </Card>
+  <Link href="/docs/preparation/mesh" className="block h-full">
+    <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
+      <CardHeader className="text-left items-start ">
+        **`DATA/meshfem3D_files/`**
+        <CardDescription >
+          This directory contains the mesh files (Following Specfem3D format), which define the computational domain for the forward simulation.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
+  <Link href="/docs/preparation/model" className="block h-full">
+    <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
+      <CardHeader className="text-left items-start ">
+        **`DATA/tomo_files/tomography_model.h5`**
+        <CardDescription >
+          This file contains the initial model parameters in HDF5 format, which is used for creating GLL mesh and defining the model databases for the forward simulation.
+        </CardDescription>
+      </CardHeader>
+    </Card>
+  </Link>
   <Link href="/docs/preparation/parameter" className="block h-full">
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start">

@@ -258,8 +258,8 @@ MODEL_UPDATE:
 - `INIT_MODEL_PATH`: Path to the initial model file. It should be a HDF5 file with the same format as `DATA/tomo_files/tomography_model.h5`, but the size could be different from the `MODEL_GRID` section. An interpolation will be performed to interpolate `INIT_MODEL_PATH` to `MODEL_GRID` size and save to `optimize/model_M00.h5`.
 
 - `MODEL_TYPE`: Type of model parameters to be updated. It can be
-  - `1` for updating Vp, Vs, and Rho.
-  - `2` for updating azimuthal anisotropy parameters (L, Gc, Gs).
+  - `1` for updating $Vp$, $Vs$, and $\rho$.
+  - `2` for updating azimuthal anisotropic parameters ($Vp$, $Vs$, $\rho$, $Gc'$, and $Gs'$).
 
 - `OPT_METHOD`: Optimization method for model update. It can be
   - `1` for steepest descent (SD).

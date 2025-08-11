@@ -1,0 +1,9 @@
+# Mesh Parameters
+
+import { Callout } from 'nextra/components';
+
+SpecFWAT inherit meshing with `xmeshfem3D` from Specfem3D (Please see [Specfem3D Docs](https://specfem3d.readthedocs.io/en/latest/03_mesh_generation/) in details), but the file can be defined in [`DATA/fwat_params.yml`](docs/preparation/parameter) for different simulation type. Different size of elements for different mesh help to saving time consumption in joint FWAT.
+
+<Callout>
+`LOCAL_PATH` parameter in `DATA/Par_file` and `Mesh_Par_file` is the path to mesh and databases files. In the joint FWAT, the real path to mesh and databases files will be `{LOCAL_PATH}/{simu_type}`, because of different mesh for different simulation type.
+</Callout>
