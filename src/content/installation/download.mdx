@@ -17,3 +17,15 @@ git clone --recursive https://github.com/CompSeismoUT/SpecFWAT.git
 <Callout type='info'>
 The url of submodules are recorded in the `.gitmodules` file. You can also modify them to point to your own fork of the repository.
 </Callout>
+
+## update source code
+
+To update the source code, you can use the following commands:
+
+```bash
+git pull --recurse-submodules
+```
+
+<Callout>
+The `--recurse-submodules` option is required to update the Specfem3D to the version that is compatible with the SpecFWAT.
+</Callout>
