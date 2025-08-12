@@ -11,5 +11,5 @@ export default {
     type: 'separator',
     title: 'Examples',
   },
-  toy_examples: 'Toy Examples',
+  toy_examples: 'Synthetic Examples',
 }

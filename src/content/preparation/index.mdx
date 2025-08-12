@@ -112,7 +112,14 @@ The SpecFWAT has a few key terms that are used throughout the documentation. Som
   The `model` is a key term to define model name of each iteration in the inversion process. It is usually a string with the format `MXX`, where `XX` is two-bit integer number representing the iteration number. For example, `M00`, `M01`, ..., `M09`.
 
 ### 4. `event_name`
-  The `event_name` is a key term to define the event name for each seismic event. It is usually a string with the format `event_XXX`, where `XXX` is a string of event identifier. For example, `event_001`, `event_KW.MX001`, `event_20210101_123456` etc.
+  The `event_name` is a key term to define the event name for each seismic event. It is usually a string with unique identifier for each event. For ambient noise data, It could be the virtual source name (station name) such as `KW.MX001`. For teleseismic data, it could be the event name such as `20210101_123456`. 
+  
+  The `event_name` will be used to define:
+  - Observed data folder `fwat_data/${event_name}/`
+  - Source file name `FORCESOLUTION_${event_name}` for ambient noise tomography in `src_rec/` directory
+  - FK model file name `FKmodel_${event_name}` for teleseismic tomography in `src_rec/` directory
+  - Station file name `STATIONS_${event_name}` in `src_rec/` directory
+  
 
 ## Project Structure
 
