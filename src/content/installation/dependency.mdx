@@ -45,7 +45,7 @@ nvcc --version
 
 To install the dependencies for SpecFWAT on supercomputers, we recommend to load the required modules using the module system. Below show some examples of loading required modules on different HPC systems.
 
-<Tabs items={["N40@BSCC", "Niagara@CCDB"]}>
+<Tabs items={["N40@BSCC", "Niagara@CCDB", "Trillium@CCDB"]}>
   <Tabs.Tab>
     *N40@BSCC* is a GPU-accelerated HPC system of Beijing Super Computing Center with Nvidia GForce RTX 4090 GPUs. The following modules are required to run SpecFWAT:
     ```bash copy
@@ -57,6 +57,13 @@ To install the dependencies for SpecFWAT on supercomputers, we recommend to load
     ```bash copy
     module --force purge
     module load NiaEnv/2022a intel openmpi hdf5 cmake
+    ```
+  </Tabs.Tab>
+  <Tabs.Tab>
+    *Trillium@CCDB* is a GPU-accelerated HPC system with 4 NVIDIA H100 (SXM) GPUs for each node . The following modules are required to run SpecFWAT:
+    ```bash copy
+    module --force purge
+    module load StdEnv/2023 intel/2023.2.1 intelmpi/2021.9.0 cuda/12.6 hdf5/1.14.2
     ```
   </Tabs.Tab>
 </Tabs>

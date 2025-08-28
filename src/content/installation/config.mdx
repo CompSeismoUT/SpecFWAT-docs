@@ -23,9 +23,19 @@ SpecFWAT is built using CMake, a cross-platform build system. The following inst
 
 If you have multiple compilers installed, you can specify the Fortran and C compilers using the `FC` and `CC` options, respectively. For example on *Niagara@CCDB*:
 
-```bash copy
-CC=icc CXX=icpc FC=mpifort MPIFC=mpifort cmake ..
-```
+<Tabs items={["Niagara@CCDB", "Trillium@CCDB"]}>
+  <Tabs.Tab>
+    ```bash copy
+    CC=icc CXX=icpc FC=mpifort MPIFC=mpifort cmake ..
+    ```
+  </Tabs.Tab>
+  <Tabs.Tab>
+    ```bash copy
+    CC=icc CXX=icpc FC=ifort MPIFC=mpiifort cmake .. -DUSE_CUDA=on -DCUDA_ARCH=12 
+    ```
+  </Tabs.Tab>
+</Tabs>
+
 
 ### Specfiy HDF5 library
 
