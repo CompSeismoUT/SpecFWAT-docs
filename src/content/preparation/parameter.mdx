@@ -1,5 +1,6 @@
 # Input Parameters
 import { Callout } from 'nextra/components';
+import Image from 'next/image';
 
 The SpecFWAT employs a YAML file to define the parameters for forward simulation, adjoint simulation, post-processing, and optimization. This file is typically named `fwat_params.yml` and is located in the `DATA` directory of your SpecFWAT project. Below shows section of the `fwat_params.yml` file:
 
@@ -18,7 +19,6 @@ NOISE:
   NSTEP: 4500 # Number of time steps
   DT: 0.06 # Time step for the noise data
   IMEAS: 5
-  ITAPER: 2
   SHORT_P: [6, 10, 20] # Short period of filters
   LONG_P: [15, 25, 40] # Long period of filters
   GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity
@@ -45,8 +45,6 @@ NOISE:
 
 ### Adjoint source
 - `IMEAS`: Option of adjoint source measurements. It is used to determine the objective function. See [*measure_adj* manual](https://docs.xumijian.me/seismo/specfem3d/measure_adj.html#measurement-options) for more details of adjoint source measurements. The default value is `5`, which means the adjoint source are time shift based on cross-correlation.
-
-- `ITAPER`: Option of tapering for adjoint source. The default value is `2`, which means the Cosine tapering.
 
 - `SHORT_P`: Short cut-off period of filters for the adjoint source measurements. It is a list of values, which are used to filter the data in different frequency bands.
 
@@ -104,7 +102,8 @@ TELE:
   RCOMPS: ['Z', 'R'] # Components of the receiver
   CH_CODE: BX # Channel code
   SAVE_FK: True # Save the FK wavefield
-  COMPRESS_LEVEL: 0
+  COMPRESS_LEVEL: 0 # Compression level of the saved FK wavefield in hdf5 format
+  SUPPRESS_STF: True # Whether to convolve source time function when forward simulating teleseismic data
   NSTEP: 2500 # Number of time steps
   DT: 0.025 # Time step for the teleseismic data
   SHORT_P: [1] # Short period of filters
@@ -138,6 +137,20 @@ The parameters in the `TELE` section with the same name as in the `NOISE` sectio
 - For CPU parallelization, the FK simulation will be very fast due to so many processors. Thus, it is recommended to set `SAVE_FK` to `False` for CPU parallelization.
 </Callout>
 
+- `SUPPRESS_STF`: Whether to convolve source time function when forward simulating teleseismic data. If set to `False`, the source time function will be convolved, The STF files named `STF_{event_name}.sac` will be prepared in the `src_rec` directory.
+
+<Callout>
+The time 0 in the STF should correspond to the onset time of the earthquake. An example is shown below:
+  <Image
+    src="/source-time-function.png"
+    alt="Source Time Function"
+    width={480}
+    height={200}
+    className="mx-auto"
+  />
+  <p className="text-xs text-center text-gray-500 mt-2">Source: SCARDEC Source Time Functions Database</p>
+</Callout>
+
 - `TIME_WIN`: Time window for the teleseismic data. It is a list of two values, which are the start and end time before and after direct P arrival.
 
 - `PRECOND_TYPE`: Type of preconditioning for gradient. `2` ($P_2$) or `3` ($P_3$) are accepted value based on Z-precondition The default value is `3`.
@@ -161,29 +174,72 @@ For Receiver function adjoint tomography, the synthetic receiver function is cal
 
 - `RF.TSHIFT`: Time shift before P arrival for the receiver function inversion. It is used to align the receiver function with the direct P arrival.
 
-## `MEASURE_ADJ` Section
+## `ADJOINT_SOURCE` Section
 
-SpecFWAT 0.4.0 employs [*measure_adj*](https://github.com/SPECFEM/specfem3d/tree/master/utils/ADJOINT_TOMOGRAPHY_TOOLS/measure_adj) to measure adjoint sources of **ambient noise data**. Following parameters inherited from *measure_adj* for adjoint source measurements:
+SpecFWAT employs [*ForAdjoint*](https://github.com/xumi1993/ForAdjoint) to measure adjoint sources of **ambient noise** and **local earthquakes**, which provides built-in measurement methods including:
+- cross-correlation time shift and amplitude ratio
+- waveform difference
+- multi-taper phase shift and amplitude ratio
+- Cross-convolution waveform difference
+- Receiver function difference
+- Exponentiated phase misfit
 
 ```yaml filename="YAML" copy
-MEASURE_ADJ:
-  TSHIFT_MIN: -5.000
-  TSHIFT_MAX: 5.000
-  DLNA_MIN: -1.5000
-  DLNA_MAX: 1.5000
-  CC_MIN: 0.800
-  ERROR_TYPE: 1
-  DT_SIGMA_MIN: 1.000
-  DLNA_SIGMA_MIN: 0.500
-  WTR: 0.020
-  NPI: 2.50
-  DT_FAC: 2.000
-  ERR_FAC: 2.500
-  DT_MAX_SCALE: 3.500 
-  NCYCLE_IN_WINDOW: 1.500
-  USE_PHYSICAL_DISPERSION: .false.
+ADJOINT_SOURCE:
+  ITAPER_TYPE: 1 # 1: Hanning, 2: Hamming, 3: Cosine, 4: Cosine P10:
+  TAPER_PERCENTAGE: 0.3
+  CC:
+    TSHIFT_LIM: [-5.0, 5.0]
+    DLNA_LIM: [-1.5, 1.5]
+    CC_MIN: 0.7
+    DT_SIGMA_MIN: 1.0
+    DLNA_SIGMA_MIN: 0.5
+  MT:
+    NUM_TAPER: 5
+    MT_NW: 4.0
+    PHASE_STEP: 1.5
+    TRANSFUNC_WATERLEVEL: 1e-10
+    WATER_THRESHOLD: 0.02
+    DT_FAC: 2.0
+    ERR_FAC: 2.5
+    DT_MAX_SCALE: 3.5
+    MIN_CYCLE_IN_WINDOW: 3
+    USE_MT_ERROR: False
+  ENV:
+    WTR_ENV: 0.2
 ```
-See [measure_adj manual](https://docs.xumijian.me/seismo/specfem3d/measure_adj.html#input-file-2-measurement-par) for more details about these parameters.
+### Adjoint Source Tapering
+- `ITAPER_TYPE`: Type of tapering window for the adjoint source measurements. It can be
+  - `1` for Hanning window.
+  - `2` for Hamming window.
+  - `3` for Cosine window.
+  - `4` for Cosine P10 window.
+- `TAPER_PERCENTAGE`: Percentage of the tapering window. It is used to determine the length of the tapering window based on the total length of the time window.
+
+### Cross-correlation (CC) Measurement Parameters
+  - `CC.TSHIFT_LIM`: Time shift limits in seconds for cross-correlation measurement.
+  - `CC.DLNA_LIM`: Logarithmic amplitude ratio limits for cross-correlation measurement.
+  - `CC.CC_MIN`: Minimum cross-correlation coefficient to accept a measurement.
+  - `CC.DT_SIGMA_MIN`: Minimum standard deviation of time shift measurement in seconds.
+  - `CC.DLNA_SIGMA_MIN`: Minimum standard deviation of logarithmic amplitude ratio.
+### Multi-taper (MT) Measurement Parameters
+  - `MT.NUM_TAPER`: Number of tapers to use in multi-taper measurement.
+  - `MT.MT_NW`: bin width of multitapers (nw*df is the half
+        bandwidth of multitapers in frequency domain,
+        typical values are 2.5, 3., 3.5, 4.0)
+  - `MT.PHASE_STEP`:  maximum step for cycle skip correction .
+  - `MT.TRANSFUNC_WATERLEVEL`: Waterlevel for the transfer function in multi-taper measurement.
+  - `MT.WATER_THRESHOLD`: The triggering value to stop the search. If
+        the spectra is larger than 10*water_threshold it will trigger the
+        search again, works like the heating thermostat.
+  - `MT.DT_FAC`: percentage of wave period at which measurement range is
+        too large and MTM reverts to CCTM misfit.
+  - `MT.ERR_FAC`: percentage of error at which error is too large.
+  - `MT.DT_MAX_SCALE`: Used to calculate maximum allowable time shift
+  - `MT.MIN_CYCLE_IN_WINDOW`: Minimum number of cycles in the time window for multi-taper measurement.
+  - `MT.USE_MT_ERROR`: Whether to use multi-taper error for normalization.
+### Envelope (ENV) Measurement Parameters
+  - `ENV.WTR_ENV`: Waterlevel for envelope measurement.
 
 ## `MODEL_GRID` Section
 

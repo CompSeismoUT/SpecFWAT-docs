@@ -1,0 +1,108 @@
+# Visualization
+
+After 14 iterations of inversion, we can visualize model `model_M14.h5` in the `optimize` directory. Same as the initial model, the final model is organized with 3-D regular grid in HDF5 format. Here we use the PyGMT package to visualize the model.
+
+## Read HDF5 model
+First, we read the HDF5 model using the `h5py` package and calculate velocity perturbation with respect to the initial model.
+```python filename="Python" copy
+import h5py
+import pygmt
+
+with h5py.File('./optimize/model_M14.h5', 'r') as f:
+    x = f['x'][:]
+    y = f['y'][:]
+    z = f['z'][:]
+    vsf = f['vs'][:]
+    vpf = f['vp'][:]
+    rhof = f['rho'][:]
+with h5py.File('./optimize/model_M00.h5', 'r') as f:
+    x = f['x'][:]
+    y = f['y'][:]
+    z = f['z'][:]
+    vsi = f['vs'][:]
+    vpi = f['vp'][:]
+    rhoi = f['rho'][:]
+
+dvs = 100 *(vsf - vsi) / vsi
+```
+
+## Plot depth slices of velocity perturbation
+We select depth slices at 7 km and 23 km to visualize the Vs perturbation.
+```python filename="Python" copy
+depth = [-7000, -23000]
+
+fig = pygmt.Figure()
+with fig.subplot(nrows=1, ncols=2, figsize=("14c", "7c"),
+                 margins=["0.5c", "0.5c"],
+                 frame=['xaf+lX (m)', 'yaf+lY (m)', 'WSne'],
+                 sharey=True,):
+    for i, dep in enumerate(depth):
+        iz = np.argmin(np.abs(z - dep))
+        print(iz)
+        fig.basemap(
+            region=[x.min(), x.max(), y.min(), y.max()],
+            projection="x?c", 
+            panel=True
+        )
+        grid = xr.DataArray(
+            dvs[:, :, iz].T,
+            coords=[y, x],
+            dims=["y", "x"],
+        )
+        pygmt.makecpt(
+            cmap="polar",
+            series=[-12, 12, 0.1],
+            continuous=True,
+            reverse=True,
+            background=True
+        )
+        fig.grdimage(
+            grid=grid,
+            cmap=True,
+        )
+        fig.text(
+            text="%.1f km" % (dep / -1000),
+            position="TR",
+            font="12p,Helvetica-Bold",
+            offset="-0.2c/-0.2c",
+        )
+fig.show()
+```
+![](/noise_dep.png)
+
+## Plot cross-sections of velocity perturbation
+We select cross-sections at Y=50000 m to visualize the Vs perturbation.
+```python filename="Python" copy
+
+ysec = 50000
+fig = pygmt.Figure()
+fig.basemap(region=[x.min(), x.max(), z.min(), z.max()],
+            projection="x0.00005c/0.0001c",
+            frame=[f"WSne", "xaf+lX (m)", "yaf+lZ (m)"],)
+iy = np.argmin(np.abs(y - ysec))
+print(iy, dvs.shape)
+grid = xr.DataArray(
+        dvs[:, iy, :].T,
+        coords=[z, x],
+        dims=["y", "x"],
+    )
+pygmt.makecpt(
+    cmap="polar",
+    series=[-12, 12, 0.1],
+    continuous=True,
+    reverse=True,
+    background=True
+)
+fig.grdimage(
+    grid=grid,
+    cmap=True,
+)
+fig.text(
+    text=f"Y = {ysec:.2f} m",
+    position="BR",
+    font="12p,Helvetica-Bold",
+    offset="-0.2c/0.2c",
+)
+fig.show()
+```
+![](/noise_xsec.png)
