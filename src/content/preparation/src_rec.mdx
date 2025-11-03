@@ -6,7 +6,7 @@ The `src_rec/` directory in the `project` contains input files for defining sour
 
 ## Source list
 
-The source list is used to define the sources for the FWAT. The source file name should be `sources_${dat_type}.dat`, where `${dat_type}` is the simulation type, such as `noise` for ambient noise tomography, `tele` for teleseismic tomography or `rf` for receiver function adjoint tomography. The source list file contains the following columns:
+The source list is used to define the sources for the FWAT. The source file name should be `sources_${dat_type}.dat`, where `${dat_type}` is the simulation type, such as `noise` for ambient noise tomography, `tele` for teleseismic tomography or `rf` for receiver function adjoint tomography. The source list file contains the following 6 columns:
 
 - `event_name`: The name of the event, which is used to define the source and receiver file name.
 - `event_lat`: The latitude or Y coordinate of the event in degrees.
@@ -15,8 +15,13 @@ The source list is used to define the sources for the FWAT. The source file name
 - `event_buried`: The buried depth of the event.
 - `event_weight`: The weight of the event, which is applied to objective function and adjoint source.
 
+```plaintext
+MX.ST000 -0.8209138629358446 -0.820465815889 0.0 0.0 1.0
+MX.ST001 -0.6212345678901234 -0.621098765432 0.0 0.0 1.0
+```
+
 <Callout>
-For teleseismic tomography, the `event_lat`, `event_lon`, `event_depth` and `event_buried` are not used due to the definition of back-azimuth and take-off angle of the injected plane wave, but they are required for the source list file format. 
+For teleseismic tomography, the `event_lat`, `event_lon`, `event_depth` and `event_buried` are not used due to the definition of back-azimuth and take-off angle of the injected plane wave, but they are required for the source list file format. You can set them to `0.0`. 
 </Callout>
 
 ## Source files
