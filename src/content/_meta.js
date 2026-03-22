@@ -1,10 +1,12 @@
 export default {
-  index: 'Top Page',
+  index: {
+    display: 'hidden',
+  },
   _1: {
     type: 'separator',
     title: 'Get Started',
   },
-  installation: 'installation',
+  installation: 'Installation',
   preparation: 'Preparation',
 
   _2: {
