@@ -1,5 +1,4 @@
 export default {
-  index: '',
   data: '',
   mesh: '',
   model: '',
