@@ -1,0 +1,60 @@
+# Run this example
+
+import { Callout } from 'nextra/components'
+
+## Generate synthetic data
+
+Run `00_forward.sh` to generate synthetic teleseismic waveforms using the target model. The FK plane-wave boundary conditions are applied at the mesh boundaries for each event defined in `src_rec/sources_telecc.dat`. The synthetic data is saved in the `fwat_data` folder.
+
+```bash filename="00_forward.sh" copy showLineNumbers
+#!/bin/bash
+set -e
+
+rm -rf OUTPUT_FILES
+
+mkdir -p DATABASES_MPI
+mkdir -p OUTPUT_FILES
+
+NPROC=`grep ^NPROC DATA/Par_file | grep -v -E '^[[:space:]]*#' | cut -d = -f 2 | cut -d \# -f 1`
+
+# Copy target model and run forward simulation
+cp target_model.h5 DATA/tomo_files/tomography_model.h5
+mpirun -np $NPROC ../../bin/xfwat_mesh_databases -s tele
+mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m M00 -s tele -r 1
+```
+
+<Callout type='info'>
+The `-s tele` flag activates the teleseismic mode in SpecFWAT, which reads `FKmodel_*` files from `src_rec/` and injects plane-wave boundary conditions computed by the FK method. The source time function (STF) estimation is handled internally during the measurement step.
+</Callout>
+
+## Conduct the inversion
+
+Run `01_run_this_test.sh` to perform the inversion process for 10 iterations. Each iteration consists of meshing, forward simulation with measurement and adjoint source computation, post-processing, and model update.
+
+```bash filename="01_run_this_test.sh" copy showLineNumbers
+#!/bin/bash
+set -e
+
+rm -rf OUTPUT_FILES
+
+mkdir -p DATABASES_MPI
+mkdir -p OUTPUT_FILES
+
+NPROC=`grep ^NPROC DATA/Par_file | grep -v -E '^[[:space:]]*#' | cut -d = -f 2 | cut -d \# -f 1`
+
+# Run inversion for 10 iterations
+for it in `seq 0 9`; do
+    model=`printf "M%02d" $it`
+    if [ $it -eq 0 ]; then
+        cp initial_model.h5 DATA/tomo_files/tomography_model.h5
+    fi
+    mpirun -np $NPROC ../../bin/xfwat_mesh_databases -s tele
+    mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m $model -s tele -r 3
+    mpirun -np $NPROC ../../bin/xfwat_post_proc -m $model
+    mpirun -np $NPROC ../../bin/xfwat_optimize -m $model
+done
+```
+
+<Callout type='info'>
+The `-r 3` flag enables forward simulation, measurement, and adjoint simulation in a single call. Kernels from all 8 events are summed during post-processing (`xfwat_post_proc`) before the model is updated by the L-BFGS optimizer (`xfwat_optimize`).
+</Callout>

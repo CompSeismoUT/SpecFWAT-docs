@@ -1,0 +1,266 @@
+# Preparation
+
+import { Callout } from 'nextra/components'
+
+## Define study region and mesh
+
+The `./DATA/meshfem3D_files/Mesh_Par_file` defines the study region and mesh parameters. For the teleseismic example, the model covers a ~0.8° × 1.8° area (latitude × longitude) with a depth of 80 km to accommodate the full wavefield of incoming teleseismic body waves.
+
+```
+LATITUDE_MIN                    = -0.4
+LATITUDE_MAX                    =  0.4
+LONGITUDE_MIN                   =  0.0
+LONGITUDE_MAX                   =  1.8
+DEPTH_BLOCK_KM                  = 80.0
+UTM_PROJECTION_ZONE             = 30
+SUPPRESS_UTM_PROJECTION         = .false.
+```
+
+In this example, the mesh uses `NEX_XI = 36` and `NEX_ETA = 16` surface elements, partitioned over 8 MPI processes (`NPROC_XI = 4`, `NPROC_ETA = 2`).
+
+## Generate initial and target model
+
+The initial model is a two-layer 1-D velocity structure and the target model adds trigonometric perturbations of up to 10% in Vp, Vs and density to test the inversion.
+
+```python filename="python" copy
+import numpy as np
+from pyfwat.pario import readpar
+from pyproj import Proj
+import h5py
+import matplotlib.pyplot as plt
+```
+
+<Callout type='info'>
+The [`pyfwat`](https://github.com/xumi1993/pyfwat) is a Python package for preparation and post-processing of SpecFWAT data and model. It provides functions to read, write and change parameters.
+</Callout>
+
+### Generate regular grid on UTM coordinates
+
+Because `SUPPRESS_UTM_PROJECTION` is set to `.false.`, we convert geographic coordinates to UTM before building the model grid.
+
+```python filename="python" copy
+# read mesh parameters
+lat_min = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LATITUDE_MIN')
+lat_max = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LATITUDE_MAX')
+lon_min = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LONGITUDE_MIN')
+lon_max = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'LONGITUDE_MAX')
+dep_max = readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'DEPTH_BLOCK_KM')
+
+# Convert geographic corners to UTM
+zmax = 0
+zmin = -dep_max * 1000
+zone = int(readpar('./DATA/meshfem3D_files/Mesh_Par_file', 'UTM_PROJECTION_ZONE'))
+geo2utm = Proj(proj='utm', zone=zone, ellps='WGS84')
+
+xmin1, ymin1 = geo2utm(lon_min, lat_min)
+xmin2, ymin2 = geo2utm(lon_min, lat_max)
+xmin = min(xmin1, xmin2)
+xmax1, ymax1 = geo2utm(lon_max, lat_min)
+xmax2, ymax2 = geo2utm(lon_max, lat_max)
+xmax = max(xmax1, xmax2)
+xmin1, ymin1 = geo2utm(lon_min, lat_min)
+xmin2, ymin2 = geo2utm(lon_max, lat_min)
+ymin = min(ymin1, ymin2)
+xmax1, ymax1 = geo2utm(lon_min, lat_max)
+xmax2, ymax2 = geo2utm(lon_max, lat_max)
+ymax = max(ymax1, ymax2)
+
+# Build regular grid: 2 km horizontal, 1 km vertical
+dh = 2000
+x = np.arange(xmin, xmax + dh, dh)
+y = np.arange(ymin, ymax + dh, dh)
+dz = 1000
+z = np.arange(zmin, zmax + dz, dz)
+```
+
+### Create initial model
+
+The background (starting) model is a two-layer 1-D structure:
+
+| Depth (m) | Vp (m/s) | Vs (m/s) | Density (kg/m³) |
+|---|---|---|---|
+| 0 | 6375 | 3750 | 2625 |
+| -40000 | 7616 | 4480 | 3136 |
+
+```python filename="python" copy
+# Two-layer 1-D initial model
+vp_init = np.where(z >= -40000, 6375., 7616.)
+vs_init = np.where(z >= -40000, 3750., 4480.)
+rho_init = np.where(z >= -40000, 2625., 3136.)
+
+vp = np.broadcast_to(vp_init[np.newaxis, np.newaxis, :], (len(x), len(y), len(z))).copy()
+vs = np.broadcast_to(vs_init[np.newaxis, np.newaxis, :], (len(x), len(y), len(z))).copy()
+rho = np.broadcast_to(rho_init[np.newaxis, np.newaxis, :], (len(x), len(y), len(z))).copy()
+
+with h5py.File('initial_model.h5', 'w') as f:
+    f.create_dataset('x', data=x)
+    f.create_dataset('y', data=y)
+    f.create_dataset('z', data=z)
+    f.create_dataset('vp', data=vp)
+    f.create_dataset('vs', data=vs)
+    f.create_dataset('rho', data=rho)
+```
+
+### Create target model
+
+We add trigonometric perturbations with a maximum amplitude of 10% to the initial model to create a 3-D target model.
+
+```python filename="python" copy
+def create_taper(lim_left, lim_right, arr):
+    ntaper_left = np.sum(arr < lim_left)
+    ntaper_right = np.sum(arr > lim_right)
+    return ntaper_left, ntaper_right
+
+pertv = 0.10
+limh = 20000
+limz = [-70000, -10000]
+n_pert_x, n_pert_y, n_pert_z = 2, 2, 2
+
+x_pert = np.zeros_like(x)
+ntl, ntr = create_taper(x[0] + limh, x[-1] - limh, x)
+x_pert[ntl:x.size - ntr] = np.sin(
+    n_pert_x * np.pi * np.arange(x.size - (ntl + ntr)) / (x.size - (ntl + ntr)))
+
+y_pert = np.zeros_like(y)
+ntl, ntr = create_taper(y[0] + limh, y[-1] - limh, y)
+y_pert[ntl:y.size - ntr] = np.sin(
+    n_pert_y * np.pi * np.arange(y.size - (ntl + ntr)) / (y.size - (ntl + ntr)))
+
+z_pert = np.zeros_like(z)
+ntl, ntr = create_taper(limz[0], limz[1], z)
+z_pert[ntl:z.size - ntr] = np.sin(
+    n_pert_z * np.pi * np.arange(z.size - (ntl + ntr)) / (z.size - (ntl + ntr)))
+
+xx, yy, zz = np.meshgrid(x_pert, y_pert, z_pert, indexing='ij')
+pert = xx * yy * zz * pertv
+
+vs_pert = vs * (1 + pert)
+vp_pert = vp * (1 + pert)
+rho_pert = rho * (1 + pert)
+
+with h5py.File('target_model.h5', 'w') as f:
+    f.create_dataset('x', data=x)
+    f.create_dataset('y', data=y)
+    f.create_dataset('z', data=z)
+    f.create_dataset('vp', data=vp_pert)
+    f.create_dataset('vs', data=vs_pert)
+    f.create_dataset('rho', data=rho_pert)
+```
+
+## Setup sources and receivers
+
+In the teleseismic mode, each event is represented by an incident plane wave computed via the FK (frequency-wavenumber) method. Each event therefore requires:
+- A `STATIONS_${event_id}` file listing the receivers.
+- A `FKmodel_${event_id}` file specifying the 1-D FK velocity model, incident wave type, back-azimuth, and take-off angle.
+- A `sources_telecc.dat` source list.
+
+The 8 events in this example span back-azimuths of 0°, 45°, 90°, 135°, 180°, 225°, 270°, and 315° — covering all cardinal and intercardinal directions — with a P-wave take-off angle appropriate for teleseismic distances.
+
+### Generate receiver files
+
+33 receivers in a 3 × 11 grid with 0.2° spacing in longitude are used for each event.
+
+```python filename="python" copy
+import pandas as pd
+
+utm2geo = Proj(proj='latlong', zone=zone, datum='WGS84')
+
+lats = [-0.20, 0.00, 0.20]
+lons = np.arange(0.40, 1.41, 0.10)
+
+sta = []
+for i, stla in enumerate(lats):
+    for j, stlo in enumerate(lons):
+        stnm = 'ST{:03d}'.format(i * len(lons) + j)
+        sta.append([stnm, 'MX', stla, stlo, 0.0, 0.0])
+sta = pd.DataFrame(sta, columns=['stnm', 'net', 'lat', 'lon', 'elev', 'buried'])
+
+# Write a STATIONS file for each event (all 8 events share the same receiver grid)
+for ev_id in range(8):
+    sta.to_csv(f'src_rec/STATIONS_{ev_id}', sep=' ', index=False, header=False)
+```
+
+### Generate source list
+
+The source list `src_rec/sources_telecc.dat` uses integer event IDs. Each row contains:
+`event_id  event_lat  event_lon  event_depth  event_buried  event_weight`
+
+```python filename="python" copy
+src_rows = []
+for ev_id in range(8):
+    src_rows.append([ev_id, 0.0, 0.0, 0.0, 0.0, 1.0])
+src = pd.DataFrame(src_rows,
+                   columns=['event_id', 'event_lat', 'event_lon',
+                            'event_depth', 'event_buried', 'event_weight'])
+src.to_csv('src_rec/sources_telecc.dat', sep=' ', index=False, header=False)
+```
+
+<Callout type='info'>
+The teleseismic source list uses integer event IDs instead of named events. The corresponding `FKmodel_${event_id}` and `STATIONS_${event_id}` files are matched by this ID.
+</Callout>
+
+### Generate FKmodel files
+
+Each `FKmodel_${event_id}` file defines the 1-D background velocity model used for the FK plane-wave injection and the geometry of the incoming wavefront. The 1-D model must match the initial model layers.
+
+```python filename="python" copy
+back_azimuths = [0, 45, 90, 135, 180, 225, 270, 315]
+take_off = 27.191115158518674   # degrees, corresponds to ~60° epicentral distance
+
+fkmodel_template = """\
+# 
+#  input file for embedded FK modelling 
+#
+#  for each layer we give : 
+#  LAYER ilayer rho vp vs ztop
+#  the last layer is the homogeneous half space 
+#
+#
+# model description  ---------------------
+NLAYER             2
+LAYER 1 2625. 6375. 3750. 0
+LAYER 2 3136. 7616. 4480. -40000.
+#----------------------------------------
+# incident wave p or sv 
+INCIDENT_WAVE      p
+#----------------------------------------
+# angles of incoming wave
+BACK_AZIMUTH           {baz}
+TAKE_OFF               {takeoff}
+#----------------------------------------
+FREQUENCY_MAX      1.0
+#----------------------------------------
+TIME_WINDOW      80
+"""
+
+for ev_id, baz in enumerate(back_azimuths):
+    content = fkmodel_template.format(baz=baz, takeoff=take_off)
+    with open(f'src_rec/FKmodel_{ev_id}', 'w') as f:
+        f.write(content)
+```
+
+<Callout type='info'>
+The `TAKE_OFF` angle is measured from vertical (0° = straight down). A value of ~27.2° corresponds to a teleseismic P-wave arriving from an epicentral distance of approximately 60°. The `BACK_AZIMUTH` is the direction from the station to the epicenter (clockwise from north).
+</Callout>
+
+## Visualize the target model
+
+We can inspect the target model perturbation and the station layout before running the inversion.
+
+```python filename="python" copy
+dep = -30000
+iz = np.argmin(np.abs(z - dep))
+
+plt.figure(figsize=(8, 4))
+plt.pcolor(x / 1000, y / 1000, pert[:, :, iz].T, cmap='bwr_r', vmin=-0.1, vmax=0.1)
+plt.colorbar(label='perturbation')
+plt.gca().set_aspect('equal')
+stx, sty = geo2utm(sta.lon.values, sta.lat.values)
+plt.plot(stx / 1000, sty / 1000, 'r^', markersize=4, label='Receivers')
+plt.xlabel('X (km)')
+plt.ylabel('Y (km)')
+plt.title(f'Target model perturbation at {dep/1000:.0f} km depth')
+plt.legend()
+plt.tight_layout()
+plt.savefig('tele-target.png', dpi=150)
+```

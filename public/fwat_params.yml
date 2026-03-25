@@ -3,92 +3,155 @@ NOISE:
   SCOMPS: ['Z'] # Components of the source
   RCOMPS: ['Z'] # Components of the receiver
   CH_CODE: BX # Channel code
+  IMEAS: 7 # Measurement type (see measure_adj manual for options)
+  USE_RHO_SCALING: True # Whether to scale the density gradient
   NSTEP: 4500 # Number of time steps
   DT: 0.06 # Time step for the noise data
-  IMEAS: 5
-  ITAPER: 2
-  SHORT_P: [6, 10, 20] # Short period of filters
-  LONG_P: [15, 25, 40] # Long period of filters
-  GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity
-  GROUPVEL_MAX: [3.2, 3.5, 4.0] # Approximate maximum group velocity
-  ADJ_SRC_NORM: False # Set the following to .true. to normalize adjoint sources across different bands
-  USE_NEAR_OFFSET: False # Set the following to false if use only data > 1 average wavelength
-  SUPPRESS_EGF: False # Set to .false. when the data are cross-correlation functions
-  PRECOND_TYPE: 1 # 1: inner product of acceleration
-  SIGMA_H: 5000
-  SIGMA_V: 5000
+  SHORT_P: [6, 10, 20] # Short cut-off period of filters
+  LONG_P: [15, 25, 40] # Long cut-off period of filters
+  GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity per band
+  GROUPVEL_MAX: [3.2, 3.5, 4.0] # Approximate maximum group velocity per band
+  ADJ_SRC_NORM: False # Normalize adjoint sources across different bands
+  USE_NEAR_OFFSET: False # False: use only data > 0.5 average wavelength
+  SUPPRESS_EGF: False # Set to True when the data are EGF (e.g. checkerboard test)
+  PRECOND_TYPE: 1 # 0: P0 (absolute sum); 1: P1 (sum of absolute)
+  SIGMA_H: 5000 # Horizontal smoothing length in meters
+  SIGMA_V: 5000 # Vertical smoothing length in meters
 
 TELE:
-  TELE_TYPE: 2 # 1: teleseismic data, 2: receiver function
+  TELE_TYPE: 1 # 1: teleseismic waveform; 2: receiver function; 3: cross-convolution
   MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
   RCOMPS: ['Z', 'R'] # Components of the receiver
   CH_CODE: BX # Channel code
-  SAVE_FK: True # Save the FK wavefield
-  NSTEP: 2500 # Number of time steps
+  INJECTION_TYPE: 1 # 1: FK injection; 2: AxiSEM injection
+  SAVE_FK: True # Save FK wavefield to disk (only when INJECTION_TYPE=1)
+  COMPRESS_LEVEL: 0 # HDF5 compression level 0–9 (only when INJECTION_TYPE=1)
+  # AXISEM_BASE_PATH: /path/to/axisem_db  # Required only when INJECTION_TYPE=2
+  SUPPRESS_STF: True # True: do not convolve STF; False: convolve STF_{event}.sac
+  USE_LOCAL_STF: False # Use per-event STF_{event}.sac from src_rec directory
+  NSTEP: 3000 # Number of time steps
   DT: 0.025 # Time step for the teleseismic data
-  SHORT_P: [1] # Short period of filters
-  LONG_P: [20] # Long period of filters
-  TIME_WIN: [-5, 25] # Time window for the teleseismic data
-  PRECOND_TYPE: 3 # 2: abs(Z); 3: root squared z
-  SIGMA_H: 5000
-  SIGMA_V: 5000
+  SHORT_P: [2] # Short cut-off period of filters
+  LONG_P: [40] # Long cut-off period of filters
+  TIME_WIN: [-5, 45] # Time window relative to direct P arrival [start, end] in seconds
+  PRECOND_TYPE: 2 # 2: abs(Z); 3: root squared Z
+  SIGMA_H: 5000 # Horizontal smoothing length in meters
+  SIGMA_V: 5000 # Vertical smoothing length in meters
   RF:
-    F0: [1.5] # Gaussian width for the RF
-    MAXIT: 200 # Maximum number of iterations
-    MINDERR: 0.001 # Minimum residual error when the RF converges
-    TSHIFT: 5.0 # Time shift before P
+    F0: [1.0] # Gaussian width(s) for receiver function
+    MAXIT: 200 # Maximum iterations for iterative deconvolution
+    MINDERR: 0.001 # Convergence criterion (minimum residual error)
+    TSHIFT: 5.0 # Time shift before P arrival in seconds
 
-####################### FWAT PAR for measure_adj ######################
-# The names below correspond to the variable names in measure_adj
-# see manual for more details https://docs.xumijian.me/seismo/specfem3d/measure_adj.html#input-file-2-measurement-par
-MEASURE_ADJ:
-  TSHIFT_MIN: -5.000
-  TSHIFT_MAX: 5.000
-  DLNA_MIN: -1.5000
-  DLNA_MAX: 1.5000
-  CC_MIN: 0.800
-  ERROR_TYPE: 1
-  DT_SIGMA_MIN: 1.000
-  DLNA_SIGMA_MIN: 0.500
-  WTR: 0.020
-  NPI: 2.50
-  DT_FAC: 2.000
-  ERR_FAC: 2.500
-  DT_MAX_SCALE: 3.500 
-  NCYCLE_IN_WINDOW: 1.500
-  USE_PHYSICAL_DISPERSION: .false.
+LEQ:
+  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
+  NSTEP: 3000 # Number of time steps
+  DT: 0.05 # Time step
+  PRECOND_TYPE: 1 # 0: P0 (absolute sum); 1: P1 (sum of absolute)
+  IMEAS: 7 # Measurement type (default: IMEAS_CC_TT_MT)
+  RCOMPS: ['Z', 'R', 'T'] # Components of the receiver
+  CH_CODE: BX # Channel code
+  SHORT_P: [2, 5] # Short cut-off period of filters
+  LONG_P: [10, 20] # Long cut-off period of filters
+  ADJ_SRC_NORM: False # Normalize adjoint sources across bands
+  USE_RHO_SCALING: True # Scale density gradient using velocity gradient
+  SIGMA_H: 5000 # Horizontal smoothing length in meters
+  SIGMA_V: 5000 # Vertical smoothing length in meters
+  WINDOW:
+    WIN_TYPE: 1 # 1: automated selector; 2: flexible; 3: group velocity; 4: arrival-based
+    WIN_TYPE_1: # Used when WIN_TYPE=1
+      SLIDING_WIN_LEN_FAC: 2.0 # Sliding window length as factor of dominant period
+      MIN_VELOCITY: 2.4 # Minimum group velocity (km/s)
+      THRESHOLD_CORR: 0.8 # Minimum cross-correlation to accept window
+      THRESHOLD_SHIFT_FAC: 0.3 # Maximum time-shift as fraction of dominant period
+      JUMP_FAC: 0.1 # Jump factor for merging adjacent windows
+      MIN_WIN_LEN_FAC: 1.5 # Minimum window length as factor of dominant period
+      MIN_SNR_WINDOW: 5.0 # Minimum SNR within window
+      MIN_ENERGY_RATIO: 5.0 # Minimum signal-to-noise energy ratio
+      MIN_PEAKS_TROUGHS: 3 # Minimum number of peaks/troughs in window
+      IS_SPLIT_PHASES: False # Split windows at phase arrivals
+    WIN_TYPE_2: # Used when WIN_TYPE=2
+      MIN_VELOCITY: 2.4
+      MIN_WIN_LEN_FAC: 1.5
+      THRESHOLD_CORR: 0.8
+      THRESHOLD_SHIFT_FAC: 2.0
+      MIN_PEAKS_TROUGHS: 3
+      THRESHOLD_DLNA: 1.0
+      MIN_SNR_WINDOW: 5.0
+      IS_SPLIT_PHASES: False
+      MAX_TIME_BEFORE_FIRST_ARRIVAL: 10.0
+      STALTA_WATER_LEVEL: 0.08
+      C_0: 1.0
+      C_2: 0.0
+      C_3A: 4.0
+      C_3B: 2.5
+      C_4A: 2.0
+      C_4B: 6.0
+    WIN_TYPE_3: # Used when WIN_TYPE=3
+      GROUPVEL_MIN: [2.3, 2.3]
+      GROUPVEL_MAX: [3.5, 4.0]
+    WIN_TYPE_4: # Used when WIN_TYPE=4
+      PHASE: P
+      TIME_WIN: [-5, 45]
 
-OUTPUT:
-  IS_OUTPUT_PREPROC: True # Output preprocessed data
-  IS_OUTPUT_ADJ_SRC: False # Output adjoint sources
-  IS_OUTPUT_EVENT_KERNEL: True # Output kernels
-  IS_OUTPUT_SUM_KERNEL: True # Output sum of kernels
-  IS_OUTPUT_HESS_INV: False # Output inverse Hessian when precond_type = 1
-  IS_OUTPUT_DIRECTION: False
+ADJOINT_SOURCE:
+  ITAPER_TYPE: 1 # 1: Hanning; 2: Hamming; 3: Cosine; 4: Cosine P10
+  TAPER_PERCENTAGE: 0.3
+  CC:
+    TSHIFT_LIM: [-5.0, 5.0] # Time shift limits in seconds
+    DLNA_LIM: [-1.5, 1.5] # Logarithmic amplitude ratio limits
+    CC_MIN: 0.7 # Minimum cross-correlation coefficient
+    DT_SIGMA_MIN: 1.0 # Minimum std of time shift measurement
+    DLNA_SIGMA_MIN: 0.5 # Minimum std of log amplitude ratio
+  MT:
+    NUM_TAPER: 5 # Number of tapers
+    MT_NW: 4.0 # Multitaper half-bandwidth (nw*df)
+    PHASE_STEP: 1.5 # Maximum step for cycle-skip correction
+    TRANSFUNC_WATERLEVEL: 1.0e-10 # Waterlevel for transfer function
+    WATER_THRESHOLD: 0.02 # Triggering threshold
+    DT_FAC: 2.0 # Time-shift fraction at which MTM reverts to CCTM
+    ERR_FAC: 2.5 # Error fraction threshold
+    DT_MAX_SCALE: 3.5 # Scale for maximum allowable time shift
+    MIN_CYCLE_IN_WINDOW: 3 # Minimum cycles in window
+    USE_MT_ERROR: False # Use multitaper error for normalization
+  ENV:
+    WTR_ENV: 0.2 # Waterlevel for envelope measurement
 
 MODEL_GRID:
-  REGULAR_GRID_MIN_COORD: [833950, -44274.0, -80000]
-  REGULAR_GRID_INTERVAL: [2000, 2000, 1000]
-  REGULAR_GRID_SIZE: [104, 48, 81]
+  REGULAR_GRID_MIN_COORD: [833950, -44274.0, -80000] # Min x, y, z in meters
+  REGULAR_GRID_INTERVAL: [2000, 2000, 1000] # Grid interval in x, y, z (meters)
+  REGULAR_GRID_SIZE: [104, 48, 81] # Number of grid points in x, y, z
 
 POSTPROC:
-  INV_TYPE: [False, True] # Inversion type of noise and teleseismic data
-  JOINT_WEIGHT: [0.5, 0.5]
-  TAPER_H_SUPPRESS: 5000
-  TAPER_H_BUFFER: 10000
-  TAPER_V_SUPPRESS: 0
-  TAPER_V_BUFFER: 0
-  IS_PRECOND: True
+  INV_TYPE: [False, True, False] # Inversion flags: noise, teleseismic, LEQ
+  JOINT_WEIGHT: [0.5, 1.0, 0.5] # Gradient weight for each data type
+  NORM_TYPE: 1 # Normalization type of gradient
+  TAPER_H_SUPPRESS: 5000 # Horizontal taper suppress length in meters
+  TAPER_H_BUFFER: 15000 # Horizontal taper buffer length in meters
+  TAPER_V_SUPPRESS: 0 # Vertical taper suppress length in meters
+  TAPER_V_BUFFER: 0 # Vertical taper buffer length in meters
+  IS_PRECOND: False # True: apply precond directly; False: use as L-BFGS rescale vector
 
 MODEL_UPDATE:
-  INIT_MODEL_PATH: initial_model.h5
-  MODEL_TYPE: 1 # 1: vp,vs,rho; 2: L,N,Gc,Gs
-  OPT_METHOD: 2 # Optimization method, 1: SD; 2: LBFGS 
-  ITER_START: 0
-  LBFGS_M_STORE: 5
+  INIT_MODEL_PATH: initial_model.h5 # Path to initial model HDF5 file
+  MODEL_TYPE: 1 # 1: Vp,Vs,rho; 2: L,N,Gc,Gs (azimuthal anisotropy)
+  # MODEL_TYPE_2: # Required only when MODEL_TYPE=2
+  #   ALT_INV: False # Alternating inversion between isotropic and anisotropic
+  #   CURRENT_INV_TYPE: 1 # Current inversion type: 1 or 2
+  OPT_METHOD: 2 # 1: steepest descent; 2: L-BFGS; 3: conjugate gradient
+  ITER_START: 0 # Starting iteration number
+  LBFGS_M_STORE: 5 # Number of previous iterations stored in L-BFGS
   MAX_SLEN: 0.02 # Maximum step length
-  MAX_SHRINK: 0.618 # Maximum shrink factor
-  MAX_SUB_ITER: 6
-  DO_LS: True # Do line search
-  C1: 0.1
-  VPVS_RATIO_RANGE: [1.3, 2.5] # Min and max limitation of Vp/Vs ratio
+  MAX_SHRINK: 0.618 # Shrink factor for failed line search steps
+  MAX_SUB_ITER: 10 # Maximum number of sub-iterations per iteration
+  DO_LS: False # True: perform line search; False: use fixed MAX_SLEN
+  C1: 0.01 # Armijo condition constant for line search
+  VPVS_RATIO_RANGE: [1.3, 2.5] # Allowed Vp/Vs ratio range [min, max]
+
+OUTPUT:
+  IS_OUTPUT_PREPROC: True # Save preprocessed data in SAC format
+  IS_OUTPUT_ADJ_SRC: True # Save adjoint sources in SAC format
+  IS_OUTPUT_EVENT_KERNEL: True # Keep per-event kernels after post-processing
+  IS_OUTPUT_SUM_KERNEL: True # Save summed kernels after post-processing
+  IS_OUTPUT_INV_GRID: False # Save inverse grid to optimize/ directory
+  IS_OUTPUT_DIRECTION: True # Save descent direction each iteration
