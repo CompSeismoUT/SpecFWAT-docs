@@ -2,6 +2,8 @@
 
 import { Callout } from 'nextra/components'
 
+The example includes initial/target HDF5 models, receiver lists, FK models, and input STF files. The walkthrough below constructs models and acquisition files of the same form; it is not required to run the bundled example. Run preparation code from `tests/toy_example_tele`.
+
 ## Define study region and mesh
 
 The `./DATA/meshfem3D_files/Mesh_Par_file` defines the study region and mesh parameters. For the teleseismic example, the model covers a ~0.8° × 1.8° area (latitude × longitude) with a depth of 80 km to accommodate the full wavefield of incoming teleseismic body waves.
@@ -23,11 +25,14 @@ In this example, the mesh uses `NEX_XI = 36` and `NEX_ETA = 16` surface elements
 The initial model is a two-layer 1-D velocity structure and the target model adds trigonometric perturbations of up to 10% in Vp, Vs and density to test the inversion.
 
 ```python filename="python" copy
+from pathlib import Path
 import numpy as np
 from pyfwat.pario import readpar
 from pyproj import Proj
 import h5py
 import matplotlib.pyplot as plt
+
+Path("src_rec").mkdir(exist_ok=True)
 ```
 
 <Callout type='info'>
@@ -152,13 +157,13 @@ with h5py.File('target_model.h5', 'w') as f:
 In the teleseismic mode, each event is represented by an incident plane wave computed via the FK (frequency-wavenumber) method. Each event therefore requires:
 - A `STATIONS_${event_id}` file listing the receivers.
 - A `FKmodel_${event_id}` file specifying the 1-D FK velocity model, incident wave type, back-azimuth, and take-off angle.
-- A `sources_telecc.dat` source list.
+- A `sources_tele.dat` source list.
 
 The 8 events in this example span back-azimuths of 0°, 45°, 90°, 135°, 180°, 225°, 270°, and 315° — covering all cardinal and intercardinal directions — with a P-wave take-off angle appropriate for teleseismic distances.
 
 ### Generate receiver files
 
-33 receivers in a 3 × 11 grid with 0.2° spacing in longitude are used for each event.
+33 receivers in a 3 × 11 grid with 0.1° spacing in longitude are used for each event.
 
 ```python filename="python" copy
 import pandas as pd
@@ -182,7 +187,7 @@ for ev_id in range(8):
 
 ### Generate source list
 
-The source list `src_rec/sources_telecc.dat` uses integer event IDs. Each row contains:
+The source list `src_rec/sources_tele.dat` uses integer event IDs. Each row contains:
 `event_id  event_lat  event_lon  event_depth  event_buried  event_weight`
 
 ```python filename="python" copy
@@ -192,11 +197,11 @@ for ev_id in range(8):
 src = pd.DataFrame(src_rows,
                    columns=['event_id', 'event_lat', 'event_lon',
                             'event_depth', 'event_buried', 'event_weight'])
-src.to_csv('src_rec/sources_telecc.dat', sep=' ', index=False, header=False)
+src.to_csv('src_rec/sources_tele.dat', sep=' ', index=False, header=False)
 ```
 
 <Callout type='info'>
-The teleseismic source list uses integer event IDs instead of named events. The corresponding `FKmodel_${event_id}` and `STATIONS_${event_id}` files are matched by this ID.
+This example uses the event names `0` through `7`; other unique event-name strings are also accepted. The corresponding `FKmodel_${event_id}` and `STATIONS_${event_id}` files are matched by this ID.
 </Callout>
 
 ### Generate FKmodel files
@@ -205,7 +210,7 @@ Each `FKmodel_${event_id}` file defines the 1-D background velocity model used f
 
 ```python filename="python" copy
 back_azimuths = [0, 45, 90, 135, 180, 225, 270, 315]
-take_off = 27.191115158518674   # degrees, corresponds to ~60° epicentral distance
+take_off = 27.191115158518674   # degrees, as in the supplied FK models
 
 fkmodel_template = """\
 # 
@@ -240,7 +245,11 @@ for ev_id, baz in enumerate(back_azimuths):
 ```
 
 <Callout type='info'>
-The `TAKE_OFF` angle is measured from vertical (0° = straight down). A value of ~27.2° corresponds to a teleseismic P-wave arriving from an epicentral distance of approximately 60°. The `BACK_AZIMUTH` is the direction from the station to the epicenter (clockwise from north).
+Use the incidence geometry from the supplied `FKmodel_*` files when reproducing this test. The `BACK_AZIMUTH` gives the incoming event direction clockwise from north; `TAKE_OFF` controls the plane-wave incidence.
+</Callout>
+
+<Callout type='info'>
+The waveform example uses `TELE_TYPE: 1` and therefore reads `sources_tele.dat`. `TELE_TYPE: 3` would instead read `sources_telecc.dat`. The supplied example also includes `STF_0.sac` through `STF_7.sac`, which are required by its forward-data generation setting `SUPPRESS_STF: False`. Keep `DATA/CMTSOLUTION` present as required by the acquisition reader.
 </Callout>
 
 ## Visualize the target model

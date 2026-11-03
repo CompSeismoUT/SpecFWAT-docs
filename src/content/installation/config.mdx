@@ -10,7 +10,7 @@ SpecFWAT is built using CMake, a cross-platform build system. The following inst
   ```
 
   ## Configure the build
-  Bascially, you can use the following command to configure the build:
+  Basically, you can use the following command to configure the build:
   ```bash copy
   cmake ..
   ```
@@ -19,7 +19,7 @@ SpecFWAT is built using CMake, a cross-platform build system. The following inst
 
 ## More options
 
-### Specfiy the compiler
+### Specify the compiler
 
 If you have multiple compilers installed, you can specify the Fortran and C compilers using the `FC` and `CC` options, respectively.
 
@@ -37,7 +37,7 @@ If you have multiple compilers installed, you can specify the Fortran and C comp
 </Tabs>
 
 
-### Specfiy HDF5 library
+### Specify HDF5 library
 
 If the HDF5 library is installed in a non-standard location, you can specify the path to the HDF5 library using the `HDF5_ROOT` option. For example:
 
@@ -47,7 +47,7 @@ cmake -DHDF5_ROOT=/path/to/hdf5 ..
 
 ### Enable GPU support
 
-Currently, SpecFWAT only supports CUDA for GPU acceleration. The CUDA architecture can be specified using the `CUDA_ARCH` option. Check the table below for the supported architectures:
+SpecFWAT supports CUDA for GPU acceleration. `CUDA_ARCH` is a SpecFWAT option number, mapped to `CMAKE_CUDA_ARCHITECTURES` by the top-level CMake file. It is not the compute capability itself. The table lists the mappings implemented in `devel`; whether a mapping can compile depends on the installed CUDA toolkit.
 
 <Table>
   <thead>
@@ -62,7 +62,7 @@ Currently, SpecFWAT only supports CUDA for GPU acceleration. The CUDA architectu
     <Table.Tr>
       <Table.Td>0</Table.Td>
       <Table.Td>N/A</Table.Td>
-      <Table.Td>GPU on current machine</Table.Td>
+      <Table.Td>native (GPU on current machine)</Table.Td>
       <Table.Td>N/A</Table.Td>
     </Table.Tr>
     <Table.Tr>
@@ -99,7 +99,7 @@ Currently, SpecFWAT only supports CUDA for GPU acceleration. The CUDA architectu
       <Table.Td>9</Table.Td>
       <Table.Td>7.0</Table.Td>
       <Table.Td>Volta</Table.Td>
-      <Table.Td>Tesla V4</Table.Td>
+      <Table.Td>Tesla V100</Table.Td>
     </Table.Tr>
     <Table.Tr>
       <Table.Td>10</Table.Td>
@@ -111,7 +111,7 @@ Currently, SpecFWAT only supports CUDA for GPU acceleration. The CUDA architectu
       <Table.Td>11</Table.Td>
       <Table.Td>8.0</Table.Td>
       <Table.Td>Ampere</Table.Td>
-      <Table.Td>Geforce RTX 30/40 series, Tesla A100</Table.Td>
+      <Table.Td>Tesla A100 (the option maps to compute capability 8.0)</Table.Td>
     </Table.Tr>
     <Table.Tr>
       <Table.Td>12</Table.Td>
@@ -136,5 +136,19 @@ More type of GPU cards can be found on the Nvidia [CUDA GPU Compute Capability](
 After configuring the build, you can compile SpecFWAT using the following command:
 
 ```bash copy
-make -j4
+cmake --build . --parallel 4
 ```
+
+Executables are written to the source checkout's `bin/` directory. Run the example scripts from their own `tests/toy_example_*` directory so that paths such as `../../bin/xfwat_optimize` resolve correctly.
+
+## Additional CMake options
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `NO_UPDATE_SUBMODULE` | `OFF` | Skip automatic submodule initialization when set to `ON`; initialize the pinned submodules yourself first. |
+| `USE_EXTERNAL_LIBS` | `ON` | Use the bundled `yaml-cpp`; with `OFF`, CMake tries an installed `yaml-cpp` version 0.8 or later before falling back to the bundled copy. |
+| `USE_HDF5` | `ON` | Enable HDF5 support, used for regular-grid models and inversion outputs. |
+| `ENABLE_DOUBLE_PRECISION` | `OFF` | Build the solver with double precision. |
+| `DEBUG_MODE` | `OFF` | Append the compiler-specific debug flags configured by the project. |
+
+These options are defined in the [top-level CMake file](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/CMakeLists.txt).

@@ -3,6 +3,30 @@
 import { Callout } from 'nextra/components'
 
 
+## Working directory and configuration
+
+Run all commands from the example directory after [building SpecFWAT](/docs/installation/config):
+
+```bash copy
+cd tests/toy_example_noise
+```
+
+Use the example's `DATA/Par_file` and `DATA/fwat_params.yml`. The supplied mesh is partitioned into 8 MPI processes (`NPROC_XI: 4`, `NPROC_ETA: 2`, `NPROC: 8`). The current noise example uses these measurement and inversion settings:
+
+```yaml copy
+NOISE:
+  IMEAS: 13
+  SUPPRESS_EGF: True
+POSTPROC:
+  INV_TYPE: [True, False, False]
+MODEL_UPDATE:
+  OPT_METHOD: 2
+  ITER_START: 0
+  DO_LS: False
+```
+
+This is an excerpt from the full configuration, not a replacement file. `IMEAS: 13` selects multitaper travel-time measurements. `SUPPRESS_EGF: True` is appropriate for the synthetic Green's-function data generated below. The example filters three bands, with `SHORT_P: [3, 7, 12]` and `LONG_P: [10, 12, 20]`.
+
 ## Generate synthetic data
 To generate synthetic data, we need to run the forward simulation using SpecFWAT. Run `00_forward.sh` to generate synthetic data for the target model. The synthetic data is saved in the `fwat_data` folder.
 
@@ -23,7 +47,7 @@ mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m M00 -s noise -r 1
 ```
 
 ## Conduct the inversion
-Run `01_run_this_test.sh` to perform the inversion process with 6 iterations.
+Run `01_run_this_test.sh` to perform 15 model updates (`M00` through `M14`). Each successful optimizer call writes the next model, so the final output is `optimize/model_M15.h5`.
 
 ```bash filename="01_run_this_test.sh" copy showLineNumbers
 #!/bin/bash
@@ -44,3 +68,7 @@ for it in `seq 0 14`; do
     mpirun -np $NPROC ../../bin/xfwat_optimize -m $MODEL
 done
 ```
+
+The run modes are `-r 1` for generating observations and `-r 3` for forward simulation, measurement, and adjoint simulation. Post-processing reads the active data types from `POSTPROC.INV_TYPE`; keep only noise enabled for this example. `DO_LS: False` means the example uses the configured fixed step length.
+
+See the source [forward script](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/tests/toy_example_noise/00_forward.sh), [inversion script](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/tests/toy_example_noise/01_run_this_test.sh), and [example parameters](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/tests/toy_example_noise/DATA/fwat_params.yml).

@@ -2,9 +2,34 @@
 
 import { Callout } from 'nextra/components'
 
+## Working directory and configuration
+
+Run all commands from `tests/toy_example_tele` after [building SpecFWAT](/docs/installation/config):
+
+```bash copy
+cd tests/toy_example_tele
+```
+
+Use the full example parameter file. The relevant settings are:
+
+```yaml copy
+TELE:
+  TELE_TYPE: 1
+  SUPPRESS_STF: False
+  SAVE_FK: True
+POSTPROC:
+  INV_TYPE: [False, True, False]
+MODEL_UPDATE:
+  OPT_METHOD: 2
+  ITER_START: 0
+  DO_LS: False
+```
+
+This excerpt selects teleseismic waveform difference, FK injection (the default), and fixed-step L-BFGS updates. The model is meshed with 8 MPI processes. The forward-data generation step uses the supplied per-event `src_rec/STF_*.sac` files. Waveform measurements estimate an STF from the observed and synthetic waveforms internally; that is a separate operation from generating the target observations.
+
 ## Generate synthetic data
 
-Run `00_forward.sh` to generate synthetic teleseismic waveforms using the target model. The FK plane-wave boundary conditions are applied at the mesh boundaries for each event defined in `src_rec/sources_telecc.dat`. The synthetic data is saved in the `fwat_data` folder.
+Run `00_forward.sh` to generate synthetic teleseismic waveforms using the target model. The FK plane-wave boundary conditions are applied at the mesh boundaries for each event defined in `src_rec/sources_tele.dat`. The synthetic data is saved in the `fwat_data` folder.
 
 ```bash filename="00_forward.sh" copy showLineNumbers
 #!/bin/bash
@@ -29,7 +54,7 @@ The `-s tele` flag activates the teleseismic mode in SpecFWAT, which reads `FKmo
 
 ## Conduct the inversion
 
-Run `01_run_this_test.sh` to perform the inversion process for 10 iterations. Each iteration consists of meshing, forward simulation with measurement and adjoint source computation, post-processing, and model update.
+Run `01_run_this_test.sh` for 10 model updates (`M00` through `M09`). If all updates complete, optimizing `M09` produces `optimize/model_M10.h5`. Each iteration consists of meshing, forward simulation with measurement and adjoint source computation, post-processing, and model update.
 
 ```bash filename="01_run_this_test.sh" copy showLineNumbers
 #!/bin/bash
@@ -58,3 +83,6 @@ done
 <Callout type='info'>
 The `-r 3` flag enables forward simulation, measurement, and adjoint simulation in a single call. Kernels from all 8 events are summed during post-processing (`xfwat_post_proc`) before the model is updated by the L-BFGS optimizer (`xfwat_optimize`).
 </Callout>
+
+
+See the source [forward script](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/tests/toy_example_tele/00_forward.sh), [inversion script](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/tests/toy_example_tele/01_run_this_test.sh), and [example parameters](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/tests/toy_example_tele/DATA/fwat_params.yml).

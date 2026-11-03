@@ -6,14 +6,14 @@ The `src_rec/` directory in the `project` contains input files for defining sour
 
 ## Source list
 
-The source list is used to define the sources for the FWAT. The source file name should be `sources_${dat_type}.dat`, where `${dat_type}` is the simulation type, such as `noise` for ambient noise tomography, `tele` for teleseismic tomography or `rf` for receiver function adjoint tomography. The source list file contains the following 6 columns:
+The source list is used to define the sources for the FWAT. The source file name should be `sources_${dat_type}.dat`, where `${dat_type}` is `noise`, `tele`, `rf`, `telecc`, or `leq`. For teleseismic runs, `TELE.TELE_TYPE` selects `tele` (1), `rf` (2), or `telecc` (3). The source list accepts five or six columns:
 
 - `event_name`: The name of the event, which is used to define the source and receiver file name.
-- `event_lat`: The latitude or Y coordinate of the event in degrees.
-- `event_lon`: The longitude or X coordinate of the event in degrees.
-- `event_depth`: The depth of the event.
-- `event_buried`: The buried depth of the event.
-- `event_weight`: The weight of the event, which is applied to objective function and adjoint source.
+- `event_lat`: Event latitude (degrees), or Y coordinate when UTM projection is suppressed.
+- `event_lon`: Event longitude (degrees), or X coordinate when UTM projection is suppressed.
+- `event_depth`: Event depth, used in LEQ arrival-time calculations.
+- `event_buried`: Fifth column retained for file compatibility; the current source-list reader reads and discards this value. Define the actual source location in the corresponding solution file.
+- `event_weight`: Optional sixth column giving the event weight; defaults to `1.0` when omitted. Keep this column when weighting the objective and adjoint sources.
 
 ```plaintext
 MX.ST000 -0.8209138629358446 -0.820465815889 0.0 0.0 1.0
@@ -21,7 +21,7 @@ MX.ST001 -0.6212345678901234 -0.621098765432 0.0 0.0 1.0
 ```
 
 <Callout>
-For teleseismic tomography, the `event_lat`, `event_lon`, `event_depth` and `event_buried` are not used due to the definition of back-azimuth and take-off angle of the injected plane wave, but they are required for the source list file format. You can set them to `0.0`. 
+For teleseismic tomography, the `event_lat`, `event_lon`, `event_depth` and `event_buried` are not used due to the definition of back-azimuth and take-off angle of the injected plane wave, but they are required for the source list file format. You can set them to `0.0`.
 </Callout>
 
 ## Source files
@@ -29,7 +29,7 @@ For teleseismic tomography, the `event_lat`, `event_lon`, `event_depth` and `eve
 Different simulation types require different source files in the `src_rec/` directory. Below are the source files for different simulation types:
 
 ### Ambient Noise Tomography
-For ambient noise adjoint tomography, the force solution is used as the source. the source file name should be `FORCESOLTION_${event_name}` and the format is the same as that in Specfem3D.
+For ambient noise adjoint tomography, the force solution is used as the source. the source file name should be `FORCESOLUTION_${event_name}` and the format is the same as that in Specfem3D.
 
 ```plaintext
 FORCE  001
@@ -45,17 +45,21 @@ component dir vect source N:     0.d0
 component dir vect source Z_UP:  1.d0
 ```
 
+### Local Earthquake Tomography
+
+Use `src_rec/sources_leq.dat` with one `CMTSOLUTION_${event_name}` and `STATIONS_${event_name}` file per event. The moment-tensor solution has the SPECFEM3D format. Keep the source-list coordinates/depth consistent with the solution file because LEQ window selection can calculate arrivals from the source list.
+
 ### Teleseismic Tomography
 
-The plane wave will be injected into SEM domain for teleseismic simulation, including teleseismic and receiver function adjoint tomography. Frequency-wavenumber (FK) will be used to calculate the injection plane wave. The `FKmodel_${event_name}` file is used to define the FK model for the teleseismic source. 
+The plane wave will be injected into SEM domain for teleseismic simulation, including teleseismic and receiver function adjoint tomography. With `TELE.INJECTION_TYPE: 1`, frequency-wavenumber (FK) modelling computes the injected plane wave. The `FKmodel_${event_name}` file defines the FK model and incidence geometry. With `INJECTION_TYPE: 2`, configure `AXISEM_BASE_PATH` for the AxiSEM coupling instead. Keep `DATA/CMTSOLUTION` present: the current teleseismic acquisition reader requires it even though the injected field supplies the event geometry.
 
 ```plaintext
-# 
-#  input file for embedded FK modeiling 
 #
-#  for each layer we give : 
+#  input file for embedded FK modeiling
+#
+#  for each layer we give :
 #  LAYER ilayer rho vp vs ztop
-#  the last layer is the homogeneous half space 
+#  the last layer is the homogeneous half space
 #
 #
 # model description  ---------------------
@@ -63,7 +67,7 @@ NLAYER             2
 LAYER 1 2625. 6375. 3750. 0
 LAYER 2 3136. 7616. 4480. -40000.
 #----------------------------------------
-# incident wave p or sv 
+# incident wave p or sv
 INCIDENT_WAVE      p
 #----------------------------------------
 # anlges of incomming wave
@@ -74,16 +78,19 @@ FREQUENCY_MAX      0.55
 #----------------------------------------
 TIME_WINDOW      200.
 #----------------------------------------
-# optional 
+# optional
 # ORIGIN_WAVEFRONT  299673.1 22116.76 -150000.
 # ORIGIN_TIME 0.
 ```
 
+For forward-only teleseismic data generation, `SUPPRESS_STF: False` convolves each event's `src_rec/STF_${event_name}.sac` with its synthetic traces. Keep these SAC files on the time axis expected by the run. This input STF is distinct from the STF estimated during waveform measurements.
+
 ## Receiver files
 
-The receiver files are used to define the receivers locations for the FWAT. The receiver file name should be `STATIONS_${event_name}` and the format is the same as that in Specfem3D. The file contains 6 columns: station station, network, latitude, longitude, elevation, and buried depth. Below is an example of the receiver file:
+The receiver files are used to define the receivers locations for the FWAT. The receiver file name should be `STATIONS_${event_name}` and the format is the same as that in Specfem3D. The file contains 6 columns: station, network, latitude, longitude, elevation, and buried depth. Below is an example of the receiver file:
 
 ```plaintext
 ST000 MX -0.20 0.40 0.00 0.00
 ST001 MX -0.20 0.50 0.00 0.00
 ```
+File selection and source-list parsing are implemented in [`input_params.f90`](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/input_params.f90).

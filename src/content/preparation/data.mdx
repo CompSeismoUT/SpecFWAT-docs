@@ -2,28 +2,28 @@
 
 import { Callout } from 'nextra/components'
 
-## File Structure
-The waveform data is stored in the `fwat_data/` directory. The waveform data is organized by event, and each event has its own subdirectory `fwat_data/${event_name}/`. The waveform data files are in SAC format, and the file name should be in the format of
+## File structure
 
-- `net.sta.BX?.sac`: in teleseismic and ambient noise tomography;
-- `net.sta.BXR.F${gaus}.rf.sac`: in receiver function adjoint tomography;
+Observed waveforms are stored in `fwat_data/${event_name}/` as SAC files. Event names must match the selected source list in `src_rec/`.
 
-where `net` is the network code, `sta` is the station code, and `BX?` is the component code (e.g., `BXR` for radial component, `BXZ` for vertical component), which are set in the `DATA/fwat_prams.yml`: `RCOMPS`. The `gaus` is the Gaussian width of the receiver function in 1 bit float format (e.g., 0.5, 1.0, and 2.0), which should be the same as in `DATA/fwat_params.yml`: `F0`.
+| Data type | File name |
+| --- | --- |
+| Ambient noise, local earthquakes, teleseismic waveforms, teleseismic cross-convolution | `${net}.${sta}.${CH_CODE}${component}.sac` |
+| Receiver functions | `${net}.${sta}.${CH_CODE}R.F${gaus}.rf.sac` |
 
+For example, `CH_CODE: BX` and receiver component `Z` select `MX.ST001.BXZ.sac`. The active `NOISE`, `TELE`, or `LEQ` section supplies `CH_CODE` and `RCOMPS`. Receiver functions use the radial component and one file per `TELE.RF.F0` value, formatted with one decimal place, such as `MX.ST001.BXR.F1.0.rf.sac`.
 
-## SAC Headers
+## SAC headers and sampling
 
-Some SAC headers are required to be set in the waveform data files. The following headers are required:
+The observation reader obtains `npts` and `delta` from the first trace for each event, then checks that every trace has the same number of samples. Prepare consistent sampling across all receivers and components of an event.
 
-### For All Simulation Types
-- `b`: Beginning time of the waveform data in seconds.
-- `baz`: Back-azimuth of the event in degrees.
-- `dist`: Epicentral distance in kilometers.
+- `b`: Beginning time of the waveform in seconds.
+- `baz`: Back-azimuth in degrees. The reader requires this header for all data types.
+- `dist`: Epicentral distance in kilometers. Supply it for noise group-velocity windows and local-earthquake processing. LEQ explicitly rejects a missing value; noise window selection also uses this distance.
+- `t0`: Direct P-wave arrival time in seconds, on the same time reference as `b`. Required for teleseismic waveform and cross-convolution data.
 
-<Callout>
-The `dist` dose not need to be set for receiver function adjoint tomography.
+<Callout type="info">
+Receiver-function processing sets the reference arrival to zero internally and does not require `dist` or `t0`. Teleseismic waveform processing aligns the observed `t0` with the predicted synthetic P arrival.
 </Callout>
 
-### Additional Headers for Teleseismic Tomography
-- `t0`: The arrival time of the first P wave in seconds.
-
+The [`ObsData` reader](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/obs_data.f90) defines file naming and header checks. The examples' forward-only mode (`-r 1`) writes synthetic observations into this same `fwat_data/` structure.

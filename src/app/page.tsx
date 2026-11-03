@@ -70,7 +70,7 @@ export default function IndexPage() {
               <Sparkles />
               <CardTitle>Flexible data support</CardTitle>
               <CardDescription>
-                Teleseismic, ambient noise, and receiver function data are supported and their joint inversion can also be used.
+                Ambient noise, local earthquake, and teleseismic data are supported. Teleseismic objectives include waveform difference, receiver functions, and cross-convolution.
               </CardDescription>
             </CardHeader>
           </Card>
@@ -79,7 +79,7 @@ export default function IndexPage() {
               <LayoutGrid />
               <CardTitle>Multi-parameter inversion</CardTitle>
               <CardDescription>
-                Both isotropic (Vp, Vs, and density) and anisotropic (Gc and Gs) elastic parameters can be inverted for.
+                Update isotropic parameters (Vp, Vs, and density), or include normalized azimuthal anisotropy parameters (gcp and gsp) with simultaneous or externally scheduled alternating updates.
               </CardDescription>
             </CardHeader>
           </Card>

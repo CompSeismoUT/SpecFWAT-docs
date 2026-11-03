@@ -8,6 +8,7 @@ export default {
   },
   installation: 'Installation',
   preparation: 'Preparation',
+  inversion: 'Inversion',
 
   _2: {
     type: 'separator',

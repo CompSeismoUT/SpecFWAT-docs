@@ -1,30 +1,63 @@
-import { Bleed } from 'nextra/components'
+import { Callout } from 'nextra/components'
 
 # Introduction
 
-This is the documentation for SpecFWAT, a package for seismic full-waveform adjoint tonography (FWAT) based on the open-source software package [SPECFEM3D](https://specfem.org/) driven by modern Fortran. It is designed to be user-friendly and fast, allowing users to perform FWAT on supercomputer accelerated by GPUs and CPUs.
+SpecFWAT is a modern Fortran package for seismic full-waveform adjoint tomography (FWAT), built on [SPECFEM3D](https://specfem.org/). It combines simulation, waveform measurement, kernel processing, and model optimization for ambient noise, teleseismic, and local earthquake data on CPUs and GPUs.
+
+<Callout type="info">
+  These pages were checked on **3 November 2026** against the latest available `devel` commit, [`39a9a9b`](https://github.com/CompSeismoUT/SpecFWAT/tree/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5). Start with the [input parameter reference](/docs/preparation/parameter) and [inversion strategies](/docs/inversion/strategy) when migrating an older configuration. Example values describe particular tests; parser defaults and implementation limits are identified separately.
+</Callout>
 
 ![SpecFWAT workflow diagram](/fwat.png)
 
-The SpecFWAT Intergated the typlical FWAT workflow in a 4 execuable files, which includes:
+## Workflow
 
-1. **`xfwat_mesh_databases`**: Creation of GLL mesh and model databases based on specified simulation type and regular grid model in the `DATA/tomo_files/tomography_model.h5`.
+Four executables implement one inversion iteration:
 
-2. **`xfwat_fwd_measure_adj`**: Forward simulation, adjoint source measurements and computing of adjoint wavefields.
-3. **`xfwat_post_proc`**: Taking sum of kernels, preconditioning, smoothing and weight sum of gradient for joint inversion.
-4. **`xfwat_optimize`**: Optimization of model parameters based on steepest descent, conjugate gradient or L-BFGS methods.
+| Executable | Purpose |
+| --- | --- |
+| `xfwat_mesh_databases -s TYPE` | Generate the mesh and simulation databases using the current `tomography_model.h5`. |
+| `xfwat_fwd_measure_adj -m MODEL -s TYPE -r MODE` | Run the selected forward, measurement, and adjoint steps for the event list. |
+| `xfwat_post_proc -m MODEL` | Sum event kernels, process each active data type, and combine gradients on the common inversion grid. |
+| `xfwat_optimize -m MODEL` | Compute an SD, L-BFGS, or CG direction and write the next model. |
 
-Thus, the interaction with SpecFWAT is simple and straightforward, allowing users to focus on their seismic data and model parameters without worrying about the underlying complexities of the inversion process.
+`TYPE` is `noise`, `tele`, or `leq`. For `tele`, `TELE.TELE_TYPE` selects waveform difference (`1`), receiver functions (`2`), or cross-convolution (`3`). Use `-s tele` for all three teleseismic objectives.
+
+The forward executable accepts these run modes:
+
+| `-r` | Steps |
+| --- | --- |
+| `1` | Forward simulation and export of synthetic data to `fwat_data/`. |
+| `2` | Forward simulation and measurement of misfit/adjoint sources. |
+| `3` | Forward simulation, measurement, and adjoint simulation to generate kernels. |
+| `4` | Forward simulation with saved fields for a later adjoint run. |
+| `5` | Adjoint simulation using the previously prepared fields and adjoint sources. |
+
+Append `-e INDEX` to select one event by its one-based index in the source list. Without it, the executable loops over all events. See the [source implementation](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/prepare_fwd.f90) for the run-mode branches and the [argument parser](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/argparse.f90) for accepted options.
+
+## A single-data inversion
+
+The following template runs ten teleseismic iterations from the project directory. Set `FWAT_BIN` to your compiled executables and `NPROC` to the process count required by `DATA/Par_file`. Prepare the files described under [Preparation](/docs/preparation), set `POSTPROC.INV_TYPE: [false, true, false]`, and use `DO_LS: false` for this fixed-step example.
 
 ```bash filename="run_fwat.sh" copy showLineNumbers
-for it in `seq 0 9`; do
-    model=`printf "M%02d" $it`
-    if [ $it -eq 0 ]; then
-        cp initial_model.h5 DATA/tomo_files/tomography_model.h5
-    fi
-    mpirun -np $NPROC ../../bin/xfwat_mesh_databases -s tele
-    mpirun -np $NPROC ../../bin/xfwat_fwd_measure_adj -m $model -s tele -r 3
-    mpirun -np $NPROC ../../bin/xfwat_post_proc -m $model
-    mpirun -np $NPROC ../../bin/xfwat_optimize -m $model
+#!/usr/bin/env bash
+set -euo pipefail
+
+: "${FWAT_BIN:?Set FWAT_BIN to the SpecFWAT bin directory}"
+: "${NPROC:?Set NPROC to the process count in DATA/Par_file}"
+
+mkdir -p DATABASES_MPI OUTPUT_FILES DATA/tomo_files
+cp initial_model.h5 DATA/tomo_files/tomography_model.h5
+
+for it in $(seq 0 9); do
+    model=$(printf 'M%02d' "$it")
+    mpirun -np "$NPROC" "$FWAT_BIN/xfwat_mesh_databases" -s tele
+    mpirun -np "$NPROC" "$FWAT_BIN/xfwat_fwd_measure_adj" -m "$model" -s tele -r 3
+    mpirun -np "$NPROC" "$FWAT_BIN/xfwat_post_proc" -m "$model"
+    mpirun -np "$NPROC" "$FWAT_BIN/xfwat_optimize" -m "$model"
+    next_model=$(printf 'M%02d' "$((it + 1))")
+    test -s "optimize/model_${next_model}.h5"
 done
 ```
+
+This example assumes `TOMOGRAPHY_PATH = DATA/tomo_files/` and `MODEL_UPDATE.INIT_MODEL_PATH: initial_model.h5`. The optimizer writes both `optimize/model_M01.h5` (then `M02`, etc.) and the current `tomography_model.h5`; the next mesh generation reads that updated file. A restart must restore the intended current model before meshing. For joint inversion, run every enabled simulation type before post-processing; see [inversion strategies](/docs/inversion/strategy) for weights, parameter blocks, and restart requirements.

@@ -1,9 +1,15 @@
+# SpecFWAT devel parameter example, reviewed 2026-11-03
+# Source commit: 39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5
+# Values below are examples, not universal defaults. Adapt mesh, grid, time step,
+# periods, smoothing and initial model to your project. See /docs/preparation/parameter.
+# INV_TYPE and JOINT_WEIGHT always use [noise, tele, leq] order.
+
 NOISE:
   MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
   SCOMPS: ['Z'] # Components of the source
   RCOMPS: ['Z'] # Components of the receiver
   CH_CODE: BX # Channel code
-  IMEAS: 7 # Measurement type (see measure_adj manual for options)
+  IMEAS: 13 # Explicitly set: 11=CC time shift; 13=multitaper time shift (7 is unsupported)
   USE_RHO_SCALING: True # Whether to scale the density gradient
   NSTEP: 4500 # Number of time steps
   DT: 0.06 # Time step for the noise data
@@ -12,9 +18,9 @@ NOISE:
   GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity per band
   GROUPVEL_MAX: [3.2, 3.5, 4.0] # Approximate maximum group velocity per band
   ADJ_SRC_NORM: False # Normalize adjoint sources across different bands
-  USE_NEAR_OFFSET: False # False: use only data > 0.5 average wavelength
-  SUPPRESS_EGF: False # Set to True when the data are EGF (e.g. checkerboard test)
-  PRECOND_TYPE: 1 # 0: P0 (absolute sum); 1: P1 (sum of absolute)
+  USE_NEAR_OFFSET: False # False: reject distance < mean(GROUPVEL_MIN, GROUPVEL_MAX) * LONG_P
+  SUPPRESS_EGF: False # False: differentiate observed CCF; True: skip (data already EGF)
+  PRECOND_TYPE: 1 # Sum of absolute Hessian kernels; 0 exists in postproc but lacks forward Hessian generation
   SIGMA_H: 5000 # Horizontal smoothing length in meters
   SIGMA_V: 5000 # Vertical smoothing length in meters
 
@@ -27,8 +33,8 @@ TELE:
   SAVE_FK: True # Save FK wavefield to disk (only when INJECTION_TYPE=1)
   COMPRESS_LEVEL: 0 # HDF5 compression level 0–9 (only when INJECTION_TYPE=1)
   # AXISEM_BASE_PATH: /path/to/axisem_db  # Required only when INJECTION_TYPE=2
-  SUPPRESS_STF: True # True: do not convolve STF; False: convolve STF_{event}.sac
-  USE_LOCAL_STF: False # Use per-event STF_{event}.sac from src_rec directory
+  SUPPRESS_STF: True # Controls forward-only SAC export: False convolves src_rec/STF_{event}.sac
+  USE_LOCAL_STF: False # Parsed, but has no effect in this devel revision
   NSTEP: 3000 # Number of time steps
   DT: 0.025 # Time step for the teleseismic data
   SHORT_P: [2] # Short cut-off period of filters
@@ -47,8 +53,8 @@ LEQ:
   MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
   NSTEP: 3000 # Number of time steps
   DT: 0.05 # Time step
-  PRECOND_TYPE: 1 # 0: P0 (absolute sum); 1: P1 (sum of absolute)
-  IMEAS: 7 # Measurement type (default: IMEAS_CC_TT_MT)
+  PRECOND_TYPE: 1 # Sum of absolute Hessian kernels; 0 exists in postproc but lacks forward Hessian generation
+  IMEAS: 13 # Default 13: multitaper time shift; 11: cross-correlation time shift
   RCOMPS: ['Z', 'R', 'T'] # Components of the receiver
   CH_CODE: BX # Channel code
   SHORT_P: [2, 5] # Short cut-off period of filters
@@ -60,14 +66,14 @@ LEQ:
   WINDOW:
     WIN_TYPE: 1 # 1: automated selector; 2: flexible; 3: group velocity; 4: arrival-based
     WIN_TYPE_1: # Used when WIN_TYPE=1
-      SLIDING_WIN_LEN_FAC: 2.0 # Sliding window length as factor of dominant period
-      MIN_VELOCITY: 2.4 # Minimum group velocity (km/s)
+      SLIDING_WIN_LEN_FAC: 2.0 # Sliding window length as factor of SHORT_P
+      MIN_VELOCITY: 2.4 # Velocity (km/s) setting the end of the search interval
       THRESHOLD_CORR: 0.8 # Minimum cross-correlation to accept window
-      THRESHOLD_SHIFT_FAC: 0.3 # Maximum time-shift as fraction of dominant period
+      THRESHOLD_SHIFT_FAC: 0.3 # Maximum time shift as fraction of SHORT_P
       JUMP_FAC: 0.1 # Jump factor for merging adjacent windows
-      MIN_WIN_LEN_FAC: 1.5 # Minimum window length as factor of dominant period
+      MIN_WIN_LEN_FAC: 1.5 # Minimum window length as factor of SHORT_P
       MIN_SNR_WINDOW: 5.0 # Minimum SNR within window
-      MIN_ENERGY_RATIO: 5.0 # Minimum signal-to-noise energy ratio
+      MIN_ENERGY_RATIO: 5.0 # Maximum allowed observed/synthetic energy ratio (also reciprocal lower bound)
       MIN_PEAKS_TROUGHS: 3 # Minimum number of peaks/troughs in window
       IS_SPLIT_PHASES: False # Split windows at phase arrivals
     WIN_TYPE_2: # Used when WIN_TYPE=2
@@ -125,23 +131,23 @@ MODEL_GRID:
 POSTPROC:
   INV_TYPE: [False, True, False] # Inversion flags: noise, teleseismic, LEQ
   JOINT_WEIGHT: [0.5, 1.0, 0.5] # Gradient weight for each data type
-  NORM_TYPE: 1 # Normalization type of gradient
+  NORM_TYPE: 1 # Joint only: 1=reference gradient max; 2=reference misfit; 3=reference gradient std
   TAPER_H_SUPPRESS: 5000 # Horizontal taper suppress length in meters
   TAPER_H_BUFFER: 15000 # Horizontal taper buffer length in meters
   TAPER_V_SUPPRESS: 0 # Vertical taper suppress length in meters
   TAPER_V_BUFFER: 0 # Vertical taper buffer length in meters
-  IS_PRECOND: False # True: apply precond directly; False: use as L-BFGS rescale vector
+  IS_PRECOND: False # True: apply precond directly; False: save hess_inv for optimizer direction scaling
 
 MODEL_UPDATE:
   INIT_MODEL_PATH: initial_model.h5 # Path to initial model HDF5 file
-  MODEL_TYPE: 1 # 1: Vp,Vs,rho; 2: L,N,Gc,Gs (azimuthal anisotropy)
+  MODEL_TYPE: 1 # 1: vp,vs,rho; 2: vp,vs,rho,gcp,gsp (azimuthal anisotropy)
   # MODEL_TYPE_2: # Required only when MODEL_TYPE=2
-  #   ALT_INV: False # Alternating inversion between isotropic and anisotropic
-  #   CURRENT_INV_TYPE: 1 # Current inversion type: 1 or 2
+  #   ALT_INV: False # Mask updates to the selected block; switch CURRENT_INV_TYPE externally
+  #   CURRENT_INV_TYPE: 1 # 1: update vp,vs,rho; 2: update gcp,gsp
   OPT_METHOD: 2 # 1: steepest descent; 2: L-BFGS; 3: conjugate gradient
-  ITER_START: 0 # Starting iteration number
+  ITER_START: 0 # Start of optimizer history; set to current iteration to restart history
   LBFGS_M_STORE: 5 # Number of previous iterations stored in L-BFGS
-  MAX_SLEN: 0.02 # Maximum step length
+  MAX_SLEN: 0.02 # Initial/fixed step for a direction normalized to max(abs(direction))=1
   MAX_SHRINK: 0.618 # Shrink factor for failed line search steps
   MAX_SUB_ITER: 10 # Maximum number of sub-iterations per iteration
   DO_LS: False # True: perform line search; False: use fixed MAX_SLEN
@@ -153,5 +159,5 @@ OUTPUT:
   IS_OUTPUT_ADJ_SRC: True # Save adjoint sources in SAC format
   IS_OUTPUT_EVENT_KERNEL: True # Keep per-event kernels after post-processing
   IS_OUTPUT_SUM_KERNEL: True # Save summed kernels after post-processing
-  IS_OUTPUT_INV_GRID: False # Save inverse grid to optimize/ directory
+  IS_OUTPUT_INV_GRID: False # Parsed, but no output is implemented for this flag in this revision
   IS_OUTPUT_DIRECTION: True # Save descent direction each iteration

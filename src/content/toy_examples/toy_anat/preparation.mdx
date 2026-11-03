@@ -1,6 +1,8 @@
 # Preparation
 import { Callout } from 'nextra/components'
 
+The example includes `initial_model.h5`, `target_model.h5`, and `src_rec/` inputs. The following walkthrough explains how to construct this style of checkerboard experiment. Run it from `tests/toy_example_noise`; preserve or back up bundled inputs before regenerating them.
+
 ## Define study region and mesh
 
 The `./DATA/meshfem3D_files/Mesh_Par_file` is used to define the study region and mesh parameters. The file contains parameters such as latitude, longitude, depth, and UTM projection zone.
@@ -17,16 +19,19 @@ SUPPRESS_UTM_PROJECTION         = .false.
 In this example, we define a 2x2 degree area centered at the origin with a depth of 32 km. The UTM projection zone is set to 30.
 
 ## Generate initial and target model
-Here we create a simple 1-D model as the initial model and 3-D model with a 2x2x2 checkerboard pattern as the target model. The model is defined in a 3-D grid.
+Here we create a simple 1-D model as the initial model and a 3-D model with a 2x2x2 checkerboard pattern as the target model. The model is defined in a 3-D grid.
 
 
 ```python filename="python" copy
+from pathlib import Path
 import numpy as np
 from pyfwat.pario import readpar, chpar
 from pyproj import Proj
 import h5py
 import matplotlib.pyplot as plt
 import pandas as pd
+
+Path("src_rec").mkdir(exist_ok=True)
 ```
 
 <Callout type='info'>
@@ -111,6 +116,9 @@ with h5py.File('initial_model.h5', 'w') as f:
 We create a 3-D checkerboard pattern for the target model by adding 2x2x2 perturbations to the initial model. The perturbations are defined as a sine function in the horizontal direction and a cosine function in the vertical direction.
 
 ```python filename="python" copy
+def create_taper(lim_left, lim_right, arr):
+    return np.sum(arr < lim_left), np.sum(arr > lim_right)
+
 # create checkerboard model
 limh = 40000
 limz = [-30000, 0]
@@ -161,7 +169,7 @@ with h5py.File('target_model.h5', 'w') as f:
 
 ## Setup sources and receivers
 
-We set up 49 receivers in a 7x7 grid with a spacing of 0.5 degrees and 9 sources in a 3x3 grid with a spacing of 1 degree. The sources and receivers are defined in UTM coordinates and then geographic coordinates for Specfem3D format.
+We set up 49 receivers in a 7x7 grid and 9 virtual sources in a 3x3 grid, with equal spacing in the projected UTM coordinates inside a 20 km margin. We convert their positions to geographic coordinates for the SPECFEM3D files.
 
 ### Setup receiver and source template
 
@@ -196,7 +204,7 @@ We save the receivers for each source in a separate file in the `src_rec/STATION
 for i, row in src.iterrows():
     staname = row['event_name'].split('.')[1]
     sta_copy = sta[sta['stnm'] != staname]
-    sta_copy.to_csv(f'src_rec/STATIONS_{row['event_name']}', sep=' ', index=False, header=False)
+    sta_copy.to_csv(f"src_rec/STATIONS_{row['event_name']}", sep=' ', index=False, header=False)
 ```
 
 ### Save source list
@@ -212,7 +220,7 @@ The `FORCESOLUTION` file is used to specify the source time function and source 
 
 ```python filename="python" copy
 # write FORCESOLUTION files
-solution = '''
+solution = '''\
 FORCE  001
 time shift:     0.0000
 f0:             0.5

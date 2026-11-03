@@ -1,13 +1,13 @@
 ---
 asIndexPage: true
 ---
-import { Card, CardHeader, CardDescription, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardDescription, CardTitle } from '@/components/ui/card';
 import { FileTree, Callout } from 'nextra/components'
 import Link from 'next/link';
 
 # Introduction
 
-In this section, we will introduce how to prepare data, mesh, model, parameters, and input files before SpecFWAT.
+Prepare the data, mesh, initial model, YAML parameters, and source/receiver files before starting SpecFWAT. The [parameter reference](/docs/preparation/parameter) describes the current `devel` configuration; [inversion strategies](/docs/inversion/strategy) explains how to combine these inputs in an inversion.
 
 ## Required Files and Directories
 <br/>
@@ -15,60 +15,48 @@ In this section, we will introduce how to prepare data, mesh, model, parameters,
   <Link href="/docs/preparation/data" className="block h-full">
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start ">
-        **`fwat_data/`**
-        <CardDescription >
-        This directory contains the seismic data, which is used for the forward simulation and adjoint measurements.
-        </CardDescription>
+        <CardTitle><code>fwat_data/</code></CardTitle>
+        <CardDescription>This directory contains the seismic data, which is used for the forward simulation and adjoint measurements.</CardDescription>
       </CardHeader>
     </Card>
   </Link>
   <Link href="/docs/preparation/mesh" className="block h-full">
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start ">
-        **`DATA/meshfem3D_files/`**
-        <CardDescription >
-          This directory contains the mesh files (Following Specfem3D format), which define the computational domain for the forward simulation.
-        </CardDescription>
+        <CardTitle><code>DATA/meshfem3D_files/</code></CardTitle>
+        <CardDescription>This directory contains the mesh files (Following Specfem3D format), which define the computational domain for the forward simulation.</CardDescription>
       </CardHeader>
     </Card>
   </Link>
   <Link href="/docs/preparation/model" className="block h-full">
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start ">
-        **`DATA/tomo_files/tomography_model.h5`**
-        <CardDescription >
-          This file contains the initial model parameters in HDF5 format, which is used for creating GLL mesh and defining the model databases for the forward simulation.
-        </CardDescription>
+        <CardTitle><code>DATA/tomo_files/tomography_model.h5</code></CardTitle>
+        <CardDescription>This file contains the initial model parameters in HDF5 format, which is used for creating GLL mesh and defining the model databases for the forward simulation.</CardDescription>
       </CardHeader>
     </Card>
   </Link>
   <Link href="/docs/preparation/parameter" className="block h-full">
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start">
-        **`DATA/fwat_params.yml`**
-        <CardDescription >
-          This file contains the parameters for the SpecFWAT workflow.
-        </CardDescription>
+        <CardTitle><code>DATA/fwat_params.yml</code></CardTitle>
+        <CardDescription>This file contains the parameters for the SpecFWAT workflow.</CardDescription>
       </CardHeader>
     </Card>
   </Link>
   <Link href="https://specfem3d.readthedocs.io/en/latest/04_creating_databases/" target="_blank" rel="noopener noreferrer" className="block h-full" >
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start ">
-        **`DATA/Par_file`**
-        <CardDescription >
-          This file contains the parameters for the Specfem3D. See **Main parameter file `Par_file`** section in the [Specfem3D documentation](https://specfem3d.readthedocs.io/en/latest/04_creating_databases/) for more details.
-        </CardDescription>
+        <CardTitle><code>DATA/Par_file</code></CardTitle>
+        <CardDescription>This file contains the parameters for SPECFEM3D. Open this card to read the <strong>Main parameter file <code>Par_file</code></strong> section in the SPECFEM3D documentation.</CardDescription>
       </CardHeader>
     </Card>
   </Link>
   <Link href="/docs/preparation/src_rec" className="block h-full">
     <Card className="hover:shadow-lg dark:hover:shadow-none dark:hover:ring-4 dark:hover:ring-slate-800 cursor-pointer h-full">
       <CardHeader className="text-left items-start ">
-        **`src_rec/`**
-        <CardDescription >
-          This directory contains the source and receiver files, which define the source and receiver locations and porperties.
-        </CardDescription>
+        <CardTitle><code>src_rec/</code></CardTitle>
+        <CardDescription>This directory contains the source and receiver files, which define the source and receiver locations and properties.</CardDescription>
       </CardHeader>
     </Card>
   </Link>
@@ -82,13 +70,16 @@ The SpecFWAT has a few key terms that are used throughout the documentation. Som
   The `simu_type` is a key term that defines simulation type. It can take the following values:
   - `noise`
   - `tele`
+  - `leq`
 
 <Callout>
   The `simu_type` will be used in following cases:
   - As a command line argument `-s` after the **`xfwat_mesh_databases`** and **`xfwat_fwd_measure_adj`**. 
-  - For joint inversion, as a suffix to define the path of databases and sum of kernels .
-    * The database path will be `{LOCAL_PATH}/{simu_type}`
-    * The sum of kernels will be `output/SUM_KERNELS_{simu_type}`
+  - In joint inversion, as a suffix for simulation databases and summed kernels:
+    * Database path: `{LOCAL_PATH}/{simu_type}`.
+    * Summed kernels: `optimize/SUM_KERNELS_{model}_{simu_type}/`.
+
+  With one active data type, the database path remains `LOCAL_PATH` and summed kernels use `optimize/SUM_KERNELS_{model}/`.
 
   The `LOCAL_PATH` is the parameter defined in *Par_file*.
 </Callout>
@@ -105,10 +96,13 @@ The SpecFWAT has a few key terms that are used throughout the documentation. Som
     - `rf`: Receiver function waveform
     - `telecc`: Teleseismic cross-convolution
 
-<Callout>
-  The `dat_type` will be used to define the suffix of source list file in `src_rec/` directory, such as `sources_noise.dat`, `sources_tele.dat`, `sources_rf.dat`, and `sources_telecc.dat`.
+  ##### For `simu_type = leq`
+    - `leq`: Local earthquake data
 
-  For teleseismic FWAT, the `TELE_TYPE` in *fwat_params.yml* will be used to define the `dat_type` for the source list files. See [teleseismic parameters](../docs/preparation/parameter#adjoint-source-1) for more details.
+<Callout>
+  The `dat_type` defines the source-list suffix: `sources_noise.dat`, `sources_tele.dat`, `sources_rf.dat`, `sources_telecc.dat`, or `sources_leq.dat`. Solver output is written below `solver/{model}.{dat_type}/{event_name}/`.
+
+  For teleseismic FWAT, `TELE.TELE_TYPE` selects `tele` (`1`), `rf` (`2`), or `telecc` (`3`). See [teleseismic parameters](/docs/preparation/parameter#tele-section). These are alternatives within the single `tele` simulation slot.
 </Callout>
 
 ### 3. `model`
@@ -120,7 +114,8 @@ The SpecFWAT has a few key terms that are used throughout the documentation. Som
   The `event_name` will be used to define:
   - Observed data folder `fwat_data/${event_name}/`
   - Source file name `FORCESOLUTION_${event_name}` for ambient noise tomography in `src_rec/` directory
-  - FK model file name `FKmodel_${event_name}` for teleseismic tomography in `src_rec/` directory
+  - FK model file name `FKmodel_${event_name}` for FK teleseismic injection in `src_rec/`
+  - Moment-tensor file name `CMTSOLUTION_${event_name}` for local earthquakes in `src_rec/`
   - Station file name `STATIONS_${event_name}` in `src_rec/` directory
   
 
@@ -133,7 +128,7 @@ The `project` is a work directory organized based on Specfem3D. Thus, subdirecto
     {/* DATA */}
     <FileTree.Folder name="DATA" >
       <FileTree.Folder name="meshfem3D_files">
-        <FileTree.File name="Mesh_Par_file.$simu_type">
+        <FileTree.File name="Mesh_Par_file (or the configured MESH_PAR_FILE)">
         </FileTree.File>
         <FileTree.File name="interface.dat">
         </FileTree.File>
@@ -147,6 +142,8 @@ The `project` is a work directory organized based on Specfem3D. Thus, subdirecto
       <FileTree.File name="fwat_params.yml">
       </FileTree.File>
       <FileTree.File name="Par_file">
+      </FileTree.File>
+      <FileTree.File name="CMTSOLUTION (required for tele)">
       </FileTree.File>
     </FileTree.Folder>
   
@@ -172,13 +169,17 @@ The `project` is a work directory organized based on Specfem3D. Thus, subdirecto
       </FileTree.File>
       <FileTree.File name="sources_tele.dat">
       </FileTree.File>
-      <FileTree.File name="FKmodel_event_1.dat">
+      <FileTree.File name="sources_leq.dat">
       </FileTree.File>
-      <FileTree.File name="FKmodel_event_2.dat">
+      <FileTree.File name="FKmodel_event_1">
       </FileTree.File>
-      <FileTree.File name="FORCESOLUTION_event_3.dat">
+      <FileTree.File name="FKmodel_event_2">
       </FileTree.File>
-      <FileTree.File name="FORCESOLUTION_event_4.dat">
+      <FileTree.File name="FORCESOLUTION_event_3">
+      </FileTree.File>
+      <FileTree.File name="FORCESOLUTION_event_4">
+      </FileTree.File>
+      <FileTree.File name="CMTSOLUTION_local_event">
       </FileTree.File>
       <FileTree.File name="STATIONS_event_1">
       </FileTree.File>

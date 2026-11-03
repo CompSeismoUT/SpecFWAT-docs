@@ -1,14 +1,16 @@
 # Visualization
 
-After 14 iterations of inversion, we can visualize model `model_M14.h5` in the `optimize` directory. Same as the initial model, the final model is organized with 3-D regular grid in HDF5 format. Here we use the PyGMT package to visualize the model.
+After all 15 updates in the example loop complete successfully, inspect `optimize/model_M15.h5`. `M00` is the starting model, and optimizing `M14` produces `M15`. Same as the initial model, the final model is organized with 3-D regular grid in HDF5 format. Here we use the PyGMT package to visualize the model.
 
 ## Read HDF5 model
 First, we read the HDF5 model using the `h5py` package and calculate velocity perturbation with respect to the initial model.
 ```python filename="Python" copy
 import h5py
+import numpy as np
+import xarray as xr
 import pygmt
 
-with h5py.File('./optimize/model_M14.h5', 'r') as f:
+with h5py.File('./optimize/model_M15.h5', 'r') as f:
     x = f['x'][:]
     y = f['y'][:]
     z = f['z'][:]

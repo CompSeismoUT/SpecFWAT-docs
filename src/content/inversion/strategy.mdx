@@ -1,0 +1,224 @@
+import { Callout } from 'nextra/components'
+
+# Inversion Strategy
+
+This page describes the implementation in SpecFWAT `devel` at [commit `39a9a9b`](https://github.com/CompSeismoUT/SpecFWAT/tree/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5), checked on **2026-11-03**. See [Input Parameters](/docs/preparation/parameter) for the complete YAML reference and downloadable template. The YAML fragments below must be merged into a complete `DATA/fwat_params.yml`.
+
+## Choose the data and objective function
+
+`POSTPROC.INV_TYPE` always has three entries in the order **noise, teleseismic, local earthquake**. One enabled entry selects a single-data inversion; two or three enable joint gradient combination.
+
+| Workflow | `POSTPROC.INV_TYPE` | Forward/adjoint command |
+| --- | --- | --- |
+| Ambient noise | `[true, false, false]` | `-s noise` |
+| Teleseismic | `[false, true, false]` | `-s tele` |
+| Local earthquake | `[false, false, true]` | `-s leq` |
+| Noise + teleseismic | `[true, true, false]` | Run both `-s noise` and `-s tele` before post-processing |
+| All three | `[true, true, true]` | Run each of `noise`, `tele`, and `leq` before post-processing |
+
+For teleseismic data, `TELE.TELE_TYPE` chooses the objective and acquisition list: `1` uses waveform difference (`sources_tele.dat`), `2` uses receiver-function difference (`sources_rf.dat`), and `3` uses cross-convolution (`sources_telecc.dat`). All three use `-s tele`. There is one teleseismic slot in a joint inversion, so this configuration does not combine multiple `TELE_TYPE` objectives in the same iteration.
+
+For noise and local earthquakes, `IMEAS` selects the measurement. For example, the current cross-correlation time-shift IDs are **11** (CC) and **13** (CC with multitaper measurement); the legacy value `7` is not a current measurement ID. Choose time windows and measurement thresholds with the objective, then inspect accepted measurements and adjoint sources before running a long inversion.
+
+Source: [data-type selection](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/common.f90), [simulation and measurement constants](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/config.f90).
+
+## Run one complete iteration
+
+For model `M00`, mesh and run forward/adjoint simulations for **every enabled data type**, then call post-processing and optimization once. The optimizer writes `optimize/model_M01.h5` and replaces the active `TOMOGRAPHY_PATH/tomography_model.h5` with that updated model. The next iteration must therefore regenerate the mesh/model databases before simulating `M01`.
+
+The following Bash example is for a fresh teleseismic inversion. Adapt `FWAT_BIN`, `NPROC`, the initial model, and mesh paths to your project. Here `TOMOGRAPHY_PATH` in `DATA/Par_file` is `DATA/tomo_files/`, `MODEL_UPDATE.INIT_MODEL_PATH` is `initial_model.h5`, and `POSTPROC.INV_TYPE` is `[false, true, false]`.
+
+```bash filename="run_inversion.sh" copy showLineNumbers
+#!/usr/bin/env bash
+set -euo pipefail
+
+FWAT_BIN=/absolute/path/to/SpecFWAT/bin
+: "${NPROC:?Set NPROC to the processor count in DATA/Par_file}"
+types=(tele)
+
+mkdir -p DATABASES_MPI OUTPUT_FILES DATA/tomo_files
+cp initial_model.h5 DATA/tomo_files/tomography_model.h5
+
+for ((it = 0; it < 10; it++)); do
+    model=$(printf 'M%02d' "$it")
+    for type in "${types[@]}"; do
+        mpirun -np "$NPROC" "$FWAT_BIN/xfwat_mesh_databases" -s "$type"
+        mpirun -np "$NPROC" "$FWAT_BIN/xfwat_fwd_measure_adj" \
+            -m "$model" -s "$type" -r 3
+    done
+    mpirun -np "$NPROC" "$FWAT_BIN/xfwat_post_proc" -m "$model"
+    mpirun -np "$NPROC" "$FWAT_BIN/xfwat_optimize" -m "$model"
+    next_model=$(printf 'M%02d' "$((it + 1))")
+    test -s "optimize/model_${next_model}.h5"
+done
+```
+
+For a noise + teleseismic inversion, change `types=(tele)` to `types=(noise tele)` and enable both entries in `INV_TYPE`. Each data type may use its own mesh, time step, duration, filter bands, and smoothing lengths; gradients meet on the common `MODEL_GRID`.
+
+| Forward/adjoint run mode | Behavior |
+| --- | --- |
+| `-r 1` | Forward simulation and synthetic data output |
+| `-r 2` | Forward simulation and misfit/adjoint-source measurement, without an adjoint simulation |
+| `-r 3` | Forward simulation, measurement, adjoint simulation, and event kernels |
+
+An inversion needs the event kernels from `-r 3` before `xfwat_post_proc`. A measurement-only run is useful for checking windows and the objective. Source: [forward/adjoint workflow](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/prepare_fwd.f90), [CLI parsing](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/argparse.f90).
+
+## Process and combine gradients
+
+For each enabled data type, post-processing runs in this order:
+
+1. Sum event kernels on that data type's GLL mesh. For `MODEL_TYPE: 2`, transform the elastic-tensor kernels into the five inversion kernels first.
+2. Apply the preconditioner immediately if `IS_PRECOND: true`; otherwise prepare a separate inverse-Hessian scaling field for optimization.
+3. Apply PDE smoothing using that data type's `SIGMA_H` and `SIGMA_V`, and project to `MODEL_GRID`.
+4. If `USE_RHO_SCALING: true`, replace the density gradient with **0.33 times the smoothed Vs gradient**.
+5. Apply the boundary taper and save the gradient on the regular grid.
+6. For a joint inversion, normalize and weight the per-type gradients, then write the combined `optimize/gradient_Mxx.h5`.
+
+`MODEL_GRID` must cover the meshes used in the inversion. Horizontal/vertical taper suppress and buffer widths are specified in meters and apply before joint gradient combination. For teleseismic injection, choose a boundary taper that preserves compatibility with the external background model.
+
+### Joint normalization and weighting
+
+For joint inversion the combined gradient is
+
+```math
+g_k = \sum_{i\ \mathrm{enabled}} \frac{w_i}{n_i}\,g_{i,k},
+\qquad w_i = \mathrm{JOINT\_WEIGHT}_i.
+```
+
+The normalization factors are measured at a **reference iteration**, rather than recalculated from the current gradient on every iteration.
+
+| `NORM_TYPE` | Reference normalization factor `n_i` |
+| --- | --- |
+| `1` | Maximum absolute value of the reference smoothed/tapered grid gradient, across all grid points and inversion parameters |
+| `2` | Sum of the reference event misfits for that data type |
+| `3` | Standard deviation of the reference grid gradient, across all grid points and inversion parameters |
+
+For L-BFGS (`OPT_METHOD: 2`), the reference is `ITER_START`. For SD and CG, it is `M00`. Keep the reference per-type gradient files or misfits available throughout the stage. A zero reference norm or zero total misfit would cause division by zero; check that each enabled data type has accepted measurements and a nonzero reference gradient.
+
+Example configuration for noise + teleseismic inversion:
+
+```yaml copy
+POSTPROC:
+  INV_TYPE: [true, true, false]
+  JOINT_WEIGHT: [0.5, 1.0, 0.0]
+  NORM_TYPE: 1
+  IS_PRECOND: true
+```
+
+The weights scale the gradients after normalization. Equal weights do not imply equal raw kernel amplitudes or equal numbers of measurements. In a single-data inversion, the joint weighting/normalization routine is skipped.
+
+### Choose where preconditioning acts
+
+| Setting | Implementation |
+| --- | --- |
+| `IS_PRECOND: true` | Multiply each summed GLL gradient by that data type's preconditioner before smoothing |
+| `IS_PRECOND: false` | Save `optimize/hess_inv_Mxx.h5`; optimization uses it as a diagonal scaling field when forming the search direction |
+
+`PRECOND_TYPE: 0` uses the absolute value of the sum of event Hessian kernels; `1` sums their absolute values. Types `2` and `3` use depth-dependent scaling proportional to depth and its square root, respectively, after normalization. The separate inverse-Hessian field is used by SD and CG as well as L-BFGS.
+
+Although post-processing accepts `PRECOND_TYPE: 0`, the [forward/adjoint setup](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/prepare_fwd.f90) enables `APPROXIMATE_HESS_KL` only for `PRECOND_TYPE: 1`. Use `1` for acceleration-based Hessian preconditioning; verify that event Hessian kernels were actually produced before attempting `0`.
+
+<Callout type="warning">
+In a joint inversion with `IS_PRECOND: false`, this revision only writes the separate inverse-Hessian field while processing the **teleseismic** data type; the noise and LEQ branches are skipped. A noise + LEQ inversion without teleseismic data therefore does not generate the field the optimizer expects. Use direct preconditioning for that combination, or verify an upstream fix before selecting the separate-field path.
+</Callout>
+
+Source: [post-processing order](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/postproc/fwat_post_proc.f90), [gradient combination and normalization](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/postproc/post_processing.f90), [depth preconditioning](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/postproc/zprecond.f90).
+
+## Select model parameters and update blocks
+
+| `MODEL_TYPE` | Parameters stored and updated |
+| --- | --- |
+| `1` | `vp`, `vs`, `rho` |
+| `2` | `vp`, `vs`, `rho`, `gcp`, `gsp` |
+
+For `MODEL_TYPE: 2`, `gcp` and `gsp` represent the normalized azimuthal anisotropy coefficients, `Gc/L` and `Gs/L`, with `L = rho * vs²`. The optimizer does not independently update `L` and `N` as additional model fields. For an isotropic starting model, provide explicit zero arrays for both coefficients with the same shape as `vp` in `INIT_MODEL_PATH`. The optimizer's missing-field fallback allocates on `MODEL_GRID`, which can have a different shape from the input axes; explicit arrays avoid that interpolation mismatch. See [model preparation](/docs/preparation/model).
+
+The isotropic fields use multiplicative updates,
+
+```math
+m_{k+1} = m_k\exp(\alpha d_k),\qquad m\in\{V_p,V_s,\rho\},
+```
+
+while `gcp` and `gsp` use additive updates, `a_next = a_current + alpha * d`. After an isotropic update, `VPVS_RATIO_RANGE` clips Vp to keep the Vp/Vs ratio within the configured interval; Vs is retained by this clipping step.
+
+### Simultaneous or alternating blocks
+
+With `MODEL_TYPE: 2` and `ALT_INV: false`, all five parameters are updated in the same call. With `ALT_INV: true`, the selected block is:
+
+| `CURRENT_INV_TYPE` | Updated block | Frozen block |
+| --- | --- | --- |
+| `1` | `vp`, `vs`, `rho` | `gcp`, `gsp` |
+| `2` | `gcp`, `gsp` | `vp`, `vs`, `rho` |
+
+```yaml copy
+MODEL_UPDATE:
+  MODEL_TYPE: 2
+  MODEL_TYPE_2:
+    ALT_INV: true
+    CURRENT_INV_TYPE: 1
+  DO_LS: false
+```
+
+`ALT_INV` masks the inactive gradient block and controls the final model update. It **does not switch `CURRENT_INV_TYPE` automatically**. Set the block in the YAML before each stage or from an external driver. When switching blocks under L-BFGS, set `ITER_START` to the first iteration of the new stage so history from the previous block is excluded.
+
+<Callout type="warning">
+Keep `DO_LS: false` for alternating-block updates in this revision. The line-search trial-model routine starts from a zero array and fills only the active block, leaving the frozen block zero during trial forward simulations. The final fixed-step update preserves the frozen block.
+</Callout>
+
+Source: [parameter names](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/config.f90), [anisotropic kernel conversion](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/postproc/kernel_io.f90), [gradient masking](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/optimization/opt_io.f90), [model-update implementation](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/optimization/optimize_grid.f90).
+
+## Choose an optimizer and step length
+
+| `OPT_METHOD` | Behavior |
+| --- | --- |
+| `1` | Steepest descent using the negative gradient and the diagonal scaling field |
+| `2` | L-BFGS using up to `LBFGS_M_STORE` previous model/gradient pairs since `ITER_START`; starts from SD at the first iteration of the stage |
+| `3` | The implemented CG option uses a Polak–Ribière coefficient from consecutive gradients, then forms `-g_current - beta * g_previous` before diagonal scaling |
+
+The CG implementation uses the previous **gradient** in this expression; it does not read the previous search direction. Its Powell restart and nonnegative-beta clipping are commented out in this revision. Treat it as the behavior of this implementation when comparing against another CG solver.
+
+All search directions are normalized by their maximum absolute component. With `DO_LS: false`, the optimizer uses `MAX_SLEN` directly; it does not check whether the objective decreases. For an isotropic update with `MAX_SLEN: 0.02`, the largest log-parameter increment is 0.02 before Vp/Vs clipping, corresponding to about a 2% multiplicative change. For anisotropy, the same step length bounds an absolute coefficient increment instead.
+
+Example stage settings (values are illustrative, not parser defaults):
+
+```yaml copy
+MODEL_UPDATE:
+  OPT_METHOD: 2
+  ITER_START: 0
+  LBFGS_M_STORE: 5
+  MAX_SLEN: 0.02
+  MAX_SHRINK: 0.618
+  MAX_SUB_ITER: 10
+  DO_LS: false
+  C1: 0.01
+  VPVS_RATIO_RANGE: [1.3, 2.5]
+```
+
+### Backtracking line search
+
+When `DO_LS: true`, each trial step writes a trial tomography model, remeshes each enabled data type, runs forward simulations and measurements, and compares the trial objective with an Armijo-style condition controlled by `C1`. Rejected trials multiply the step by `MAX_SHRINK`; exceeding `MAX_SUB_ITER` aborts optimization. This adds forward-modeling cost to every trial. Line search needs the current summed GLL kernels; post-processing writes them whenever `DO_LS` is enabled, even if `IS_OUTPUT_SUM_KERNEL` is false.
+
+<Callout type="warning">
+Joint line search needs an upstream fix before relying on it in this revision: the kernel-path loop appends data-type suffixes cumulatively, so later types are read from an incorrect directory. Use fixed steps for the joint workflow above and inspect each iteration's misfit before continuing. Alternating blocks have the separate trial-model issue described above.
+</Callout>
+
+L-BFGS checks the angle between its direction and the negative gradient and stops when the angle exceeds 90 degrees; it does not automatically reset its history. Confirm that the next model file was produced before advancing an external iteration loop.
+
+Source: [optimization driver](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/optimization/fwat_optimize.f90), [search directions and updates](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/optimization/optimize_grid.f90), [backtracking implementation](https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/optimization/line_search.f90).
+
+## Organize stages and resume an inversion
+
+Filter lists describe bands processed within the current iteration. SpecFWAT has no built-in iteration schedule for moving from long to short periods, changing joint weights, or alternating parameter blocks. A staged workflow must change `DATA/fwat_params.yml` between stages.
+
+A practical stage sequence is to inspect a long-period inversion first, add shorter-period bands after checking its measurements, and introduce anisotropic block updates when the isotropic model is suitable for that experiment. This is a workflow choice, not an automatic policy in the code. Keep the mesh/time step consistent with the shortest periods included in each stage.
+
+For an L-BFGS stage starting at `M05`:
+
+1. Preserve `optimize/model_M05.h5`, then copy it to the active `TOMOGRAPHY_PATH/tomography_model.h5` before meshing.
+2. Set `ITER_START: 5` and make the stage's filter, objective, weight, smoothing, or block changes in the YAML.
+3. Regenerate the forward/adjoint measurements and post-processed gradient for `M05` with the new settings, then optimize using `-m M05`.
+4. Keep the new stage's reference per-type gradients/misfits and subsequent model/gradient history for later L-BFGS iterations.
+
+Changing `ITER_START` resets the history boundary; it does not rename models, set the `-m` argument, or initialize a missing `model_M05.h5`. Initial-model interpolation runs only at iteration zero. A simple resume with unchanged settings can retain the original `ITER_START` and its available history. If the history is missing or the objective/parameter block changes, begin a new stage and recompute its reference measurements and gradients.
+
+The model-number parser reads two digits after `M`, and output names also use a two-digit field. The last update that fits this naming scheme is `M98` to `M99`; optimizing `M99` would overflow the next-model field. Keep stage configurations alongside their logs so gradients, reference normalization, and models can be traced to the same settings.

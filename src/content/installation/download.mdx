@@ -1,31 +1,29 @@
 import { Callout } from 'nextra/components'
 
-# Download source code
+# Download Source Code
 
-Users are available to access source code from Github repository. To download the source code, you can use the following command:
+These pages follow the `devel` branch of [SpecFWAT](https://github.com/CompSeismoUT/SpecFWAT/tree/devel). Clone that branch and its pinned submodules:
 
 ```bash copy
-git clone https://github.com/CompSeismoUT/SpecFWAT.git
+git clone --branch devel --recurse-submodules https://github.com/CompSeismoUT/SpecFWAT.git
+cd SpecFWAT
 ```
 
-Two submodules are required to run SpecFWAT, namely `SpecFEM3D` and `yaml-cpp`. They will be automatically fetched when you build the SpecFWAT. Alternatively, you can also download them separately using the following commands:
+The two submodules are `src/specfem3d` and `external_libs/yaml-cpp`. Their URLs are recorded in `.gitmodules`. CMake also runs `git submodule update --init` unless `NO_UPDATE_SUBMODULE` is enabled.
+
+## Update an existing checkout
+
+From a clean checkout on `devel`, update the parent repository and then synchronize the submodules to its recorded revisions:
 
 ```bash copy
-git clone --recursive https://github.com/CompSeismoUT/SpecFWAT.git
+git switch devel
+git pull --ff-only
+git submodule sync --recursive
+git submodule update --init --recursive
 ```
 
 <Callout type='info'>
-The url of submodules are recorded in the `.gitmodules` file. You can also modify them to point to your own fork of the repository.
+Use the submodule revisions recorded by SpecFWAT. Updating a submodule independently to its branch tip can select a solver version that differs from the one used by the parent repository.
 </Callout>
 
-## update source code
-
-To update the source code, you can use the following commands:
-
-```bash copy
-git pull --recurse-submodules
-```
-
-<Callout>
-The `--recurse-submodules` option is required to update the Specfem3D to the version that is compatible with the SpecFWAT.
-</Callout>
+Documentation was checked against [`39a9a9b`](https://github.com/CompSeismoUT/SpecFWAT/commit/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5) on November 3, 2026. Keep the commit ID with an inversion's configuration to make the run reproducible.

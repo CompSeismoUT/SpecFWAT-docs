@@ -1,302 +1,240 @@
-# Input Parameters
-import { Callout } from 'nextra/components';
-import Image from 'next/image';
+import { Callout } from 'nextra/components'
 
-The SpecFWAT employs a YAML file to define the parameters for forward simulation, adjoint simulation, post-processing, and optimization. This file is typically named `fwat_params.yml` and is located in the `DATA` directory of your SpecFWAT project. Below shows section of the `fwat_params.yml` file:
+# Input Parameters
+
+SpecFWAT reads `DATA/fwat_params.yml` for simulation, measurements, gradient processing and model updates. This reference was checked on **2026-11-03** against the latest `devel` commit [`39a9a9b`](https://github.com/CompSeismoUT/SpecFWAT/commit/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5). Parameter names and defaults below follow the [YAML reader][reader]; supported measurement numbers follow the [constants][constants] and [dispatcher][dispatcher].
 
 <Callout type="info">
-    Download a full template of `fwat_params.yml` [here](/fwat_params.yml).
+Download the complete [example `fwat_params.yml`](/fwat_params.yml). Its mesh, grid, sampling, filters and optimization settings are **example values**, not project-independent defaults. For choosing stages, joint weights and optimizer history, see [Inversion Strategy](/docs/inversion/strategy).
+</Callout>
+
+## Reading the configuration
+
+Use uppercase keys and YAML booleans (`True`/`False`). Paths are relative to the project working directory unless absolute. Supply the section for every data type you run or enable in `POSTPROC.INV_TYPE`; omit unused simulation sections if desired. Every simulation section that is present is parsed, including its nested settings. Keep `MODEL_GRID`, `POSTPROC`, `MODEL_UPDATE` and `OUTPUT` in the file.
+
+In the tables, **set explicitly** means that the reader does not supply a usable scientific default; copy and adapt the corresponding entry from the example. A listed **default** is an explicit fallback in the reader, not simply a value from a bundled test.
+
+| Quantity | Units / ordering |
+| --- | --- |
+| `DT`, periods, arrival windows and time shifts | Seconds |
+| Grid coordinates, grid spacing, `SIGMA_H/V` and tapers | Meters |
+| Group velocities and LEQ `MIN_VELOCITY` | km/s |
+| `MODEL_GRID` vectors | `[x, y, z]`, with negative `z` below the surface |
+| `INV_TYPE`, `JOINT_WEIGHT` | Exactly three entries: `[noise, tele, leq]` |
+
+<Callout type="warning">
+Set `NOISE.IMEAS` explicitly. The current reader still falls back to `7` when it is omitted, but `7` is absent from the current measurement dispatcher and causes an unknown-measurement error. The downloadable example uses `13`; use `11` for a cross-correlation time shift.
 </Callout>
 
 ## `NOISE` Section
-This section defines the noise parameters for the forward simulation and measurements of adjoint sources.
 
-```yaml filename="YAML" copy
+```yaml filename="fwat_params.yml" copy
 NOISE:
-  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
-  SCOMPS: ['Z'] # Components of the source
-  RCOMPS: ['Z'] # Components of the receiver
-  CH_CODE: BX # Channel code
-  IMEAS: 7 # Measurement type
-  USE_RHO_SCALING: True # Whether to scale the density gradient
-  NSTEP: 4500 # Number of time steps
-  DT: 0.06 # Time step for the noise data
-  SHORT_P: [6, 10, 20] # Short period of filters
-  LONG_P: [15, 25, 40] # Long period of filters
-  GROUPVEL_MIN: [2.3, 2.3, 2.5] # Approximate minimum group velocity
-  GROUPVEL_MAX: [3.2, 3.5, 4.0] # Approximate maximum group velocity
-  ADJ_SRC_NORM: False # Set the following to .true. to normalize adjoint sources across different bands
-  USE_NEAR_OFFSET: False # Set the following to false if use only data > 1 average wavelength
-  SUPPRESS_EGF: False # Set to .false. when the data are cross-correlation functions
-  PRECOND_TYPE: 1 # 1: inner product of acceleration
+  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file
+  SCOMPS: ['Z']
+  RCOMPS: ['Z']
+  CH_CODE: BX
+  IMEAS: 13
+  USE_RHO_SCALING: True
+  NSTEP: 4500
+  DT: 0.06
+  SHORT_P: [6, 10, 20]
+  LONG_P: [15, 25, 40]
+  GROUPVEL_MIN: [2.3, 2.3, 2.5]
+  GROUPVEL_MAX: [3.2, 3.5, 4.0]
+  ADJ_SRC_NORM: False
+  USE_NEAR_OFFSET: False
+  SUPPRESS_EGF: False
+  PRECOND_TYPE: 1
   SIGMA_H: 5000
   SIGMA_V: 5000
 ```
 
-### Mesh Parameters
-- `MESH_PAR_FILE`: Path to the mesh parameter file with the same format as `meshfem3D`. SpecFWAT uses internal mesh generator of Specfem3D to create the mesh based on the model parameters, but allow users to specify the mesh file rathar than a fixed mesh file `DATA/meshfem3D_files/Mesh_Par_file` of Specfem3D.
+### Mesh and solver parameters
 
-### Solver Parameters
-- `RCOMPS`: Components of the receiver, For tomography of isotropic media, it is usually set to `['Z']` for vertical component.
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `MESH_PAR_FILE` | SPECFEM3D internal mesher input; may differ between simulation types. | Set explicitly |
+| `SCOMPS` | Ambient-noise virtual-source components. | Set explicitly |
+| `RCOMPS` | Receiver components used in measurements, such as `['Z']`. | Set explicitly |
+| `CH_CODE` | Channel prefix, e.g. `BX` gives `BXZ`. Must match observed SAC filenames. | Set explicitly |
+| `NSTEP`, `DT` | Simulation sample count and time step; override the corresponding `Par_file` values for the selected type. | Set explicitly |
+| `SHORT_P`, `LONG_P` | Lower and upper periods of each bandpass. Use positive periods with `SHORT_P < LONG_P`. | Set explicitly |
+| `GROUPVEL_MIN`, `GROUPVEL_MAX` | Bounds used to select each band's surface-wave window. | Set explicitly |
 
-- `SCOMPS`: Components of the source used in ambient noise correlation. For isotropic inversions it is typically set to `['Z']`.
-
-- `CH_CODE`: Channel code, which is used to identify the channel in the data. It is usually set to `BX` for broadband data.
-
-- `NSTEP`: Number of time steps for the forward/adjoint simulation. It overrides the `NSTEP` in `DATA/Par_file`, which allow users to specify the number of time steps for different data types.
-
-- `DT`: Time step for the noise data, It overrides the `DT` in `DATA/Par_file`, which allow users to specify the time step for different data types.
+`SHORT_P`, `LONG_P`, `GROUPVEL_MIN` and `GROUPVEL_MAX` must have the same nonzero length. Multiple entries are processed and summed **within one iteration**; they do not define an automatic sequence of inversion stages.
 
 ### Adjoint source
-- `IMEAS`: Option of adjoint source measurements. It is used to determine the objective function. See [*measure_adj* manual](https://docs.xumijian.me/seismo/specfem3d/measure_adj.html#measurement-options) for more details of adjoint source measurements. The default value is `7`, which corresponds to the cross-correlation time-shift adjoint source.
 
-- `SHORT_P`: Short cut-off period of filters for the adjoint source measurements. It is a list of values, which are used to filter the data in different frequency bands.
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `IMEAS` | Measurement number; see the [supported measurements](#supported-measurements) below. | Reader fallback `7` is unsupported; set explicitly |
+| `ADJ_SRC_NORM` | Rescale each nonzero band's adjoint source to the largest band amplitude for a receiver/component before summing. | `False` |
+| `USE_NEAR_OFFSET` | `False` enables the distance rejection below; `True` keeps near offsets. | `False` |
+| `SUPPRESS_EGF` | `False` differentiates the observed cross-correlation in time; `True` skips differentiation for data already in EGF form, including synthetic tests. | Set explicitly |
 
-- `LONG_P`: Long cut-off period of filters for the adjoint source measurements. It is a list of values with the same length as `SHORT_P`.
-
-- `GROUPVEL_MIN`: Approximate minimum group velocity to determine the time window for the adjoint source measurements. It is a list of values with the same length as `SHORT_P`.
-
-- `GROUPVEL_MAX`: Approximate maximum group velocity to determine the time window for the adjoint source measurements. It is a list of values with the same length as `SHORT_P`.
-
-<Callout type="default">
-  The time window for the adjoint source measurements is determined by the Approximated group velocity and the cut-off periods. The time window $[T_{start}, T_{end}]$ is calculated as follows:
-
-  ```math
-    T_{start} = \frac{\Delta}{U_{max}}-0.5 T_{long}
-  ```
-  ```math
-    T_{end} = \frac{\Delta}{U_{min}}+0.5 T_{long}
-  ```
-</Callout>
-
-- `ADJ_SRC_NORM`: Set to `True` to normalize the adjoint sources across different bands.
-
-- `USE_NEAR_OFFSET`: Set to `False` if you want to use only data with distance greater than 0.5 * wavelength in each period band. It is usually set to `False` in practice.
-
-- `SUPPRESS_EGF`: Whether calculate difference to obtain empirical Green's functions (EGF). Set to `False` if the data are cross-correlation functions. 
-
-<Callout type="default">
-  For checkerboard test, please note that the data are EGF and the `SUPPRESS_EGF` should be set to `True`.
-</Callout>
-
-### Post-processing parameters of noise data
-
-- `PRECOND_TYPE`: Type of preconditioning for gradient. `0` ($P_0$) or `1` ($P_1$) are accepted value based on inner product of acceleration, The default value is `1`.
+The [noise preprocessing implementation][noise] sets, for distance $\Delta$ in km and velocities in km/s,
 
 ```math
-  P_0 = \left| \sum_{i=1}^{N} \int \partial_t^2 u(x, t) \partial_t^2 u^{\dag}(x, T-t) dt \right|
+T_{start}=\frac{\Delta}{U_{max}}-\frac{T_{long}}{2},\qquad
+T_{end}=\frac{\Delta}{U_{min}}+\frac{T_{long}}{2}.
 ```
+
+The interval is clipped to the available simulation. With `USE_NEAR_OFFSET: False`, a trace is rejected when
 
 ```math
-  P_1 = \sum_{i=1}^{N} \left| \int \partial_t^2 u(x, t) \partial_t^2 u^{\dag}(x, T-t) dt \right|
+\Delta < \frac{U_{max}+U_{min}}{2}\,T_{long}.
 ```
 
-- `SIGMA_H`: Horizontal smoothing length in meter of gradient.
-- `SIGMA_V`: Vertical smoothing length in meter of gradient.
+This is one wavelength estimated from the mean group velocity and the long-period cutoff. Older descriptions of a half-wavelength threshold do not match this revision.
 
-- `USE_RHO_SCALING`: Whether to scale the density ($\rho$) gradient using the velocity gradient during the model update. The default value is `True`.
+### Gradient processing parameters
 
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `PRECOND_TYPE` | `1`: sum of absolute event Hessian kernels. Post-processing also implements `0` for the absolute value after summation; see the limitation below. The result is normalized, water-leveled and inverted. | Set explicitly |
+| `SIGMA_H`, `SIGMA_V` | Horizontal and vertical PDE smoothing lengths. | Set explicitly |
+| `USE_RHO_SCALING` | In post-processing, replace the smoothed `rhop` gradient by `0.33` times the smoothed `beta` gradient. | `True` |
+
+The forward setup enables approximate-Hessian kernel generation only for `PRECOND_TYPE: 1` in this revision. Although post-processing accepts `0`, a normal run with `0` does not generate the Hessian input it expects. Use `1` for the acceleration-based preconditioner unless that source limitation is resolved.
 
 ## `TELE` Section
 
-This section defines the parameters for the teleseismic FWAT.
-
-```yaml filename="YAML" copy
+```yaml filename="fwat_params.yml" copy
 TELE:
-  TELE_TYPE: 1 # 1: teleseismic data, 2: receiver function, 3: teleseismic Cross-convolution
-  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
-  RCOMPS: ['Z', 'R'] # Components of the receiver
-  CH_CODE: BX # Channel code
-  INJECTION_TYPE: 1 # 1: FK injection; 2: AxiSEM injection
-  SAVE_FK: True # Save the FK wavefield (only when INJECTION_TYPE=1)
-  COMPRESS_LEVEL: 0 # Compression level of the saved FK wavefield (only when INJECTION_TYPE=1)
-  SUPPRESS_STF: True # Whether to suppress source time function convolution
-  USE_LOCAL_STF: False # Whether to use a local (per-event) source time function
-  NSTEP: 3000 # Number of time steps
-  DT: 0.025 # Time step for the teleseismic data
-  SHORT_P: [2] # Short period of filters
-  LONG_P: [40] # Long period of filters
-  TIME_WIN: [-5, 45] # Time window for the teleseismic data
-  PRECOND_TYPE: 2 # 2: abs(Z); 3: root squared z
+  TELE_TYPE: 1
+  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file
+  RCOMPS: ['Z', 'R']
+  CH_CODE: BX
+  INJECTION_TYPE: 1
+  SAVE_FK: True
+  COMPRESS_LEVEL: 0
+  # AXISEM_BASE_PATH: /path/to/axisem_db
+  SUPPRESS_STF: True
+  USE_LOCAL_STF: False
+  NSTEP: 3000
+  DT: 0.025
+  SHORT_P: [2]
+  LONG_P: [40]
+  TIME_WIN: [-5, 45]
+  PRECOND_TYPE: 2
   SIGMA_H: 5000
   SIGMA_V: 5000
   RF:
-    F0: [1.0] # Gaussian width for the RF
-    MAXIT: 200 # Maximum number of iterations
-    MINDERR: 0.001 # Minimum residual error when the RF converges
-    TSHIFT: 5.0 # Time shift before P
+    F0: [1.0]
+    MAXIT: 200
+    MINDERR: 0.001
+    TSHIFT: 5.0
 ```
 
-### Adjoint Source
+### Adjoint source and data type
 
-The parameters in the `TELE` section with the same name as in the `NOISE` section are similar, but with different values. The following parameters are specific to the `TELE` section:
+The shared mesh, component, sampling and smoothing keys have the meanings above. Teleseismic processing uses **one band**, `SHORT_P[0]` and `LONG_P[0]`; provide one entry in each list. Change the lists between runs to implement a period schedule.
 
-- `TELE_TYPE`: Type of objective function for teleseismic data. It can be
-  - `1` for teleseismic waveform difference ([Wang et al., 2021](https://doi.org/10.1029/2021JB021648)).
-  - `2` for receiver function difference ([Xu et al., 2023](https://doi.org/10.1029/2023GL104077)).
-  - `3` for teleseismic cross-convolution difference.
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `TELE_TYPE` | `1`: waveform difference (`tele`); `2`: receiver-function difference (`rf`); `3`: cross-convolution (`telecc`). Also selects `src_rec/sources_{dat_type}.dat`. | Set explicitly |
+| `TIME_WIN` | Exactly two offsets around the reference direct P arrival, `[start, end]`. | Set explicitly |
+| `PRECOND_TYPE` | `2`: normalized depth scaling proportional to `abs(z)`; `3`: proportional to `sqrt(abs(z))`, with near-surface regularization. | Set explicitly |
+| `INJECTION_TYPE` | `1`: FK injection; `2`: AxiSEM injection. | `1` |
+| `AXISEM_BASE_PATH` | Base directory of per-event AxiSEM coupling data, read when `INJECTION_TYPE: 2`. | Set explicitly for AxiSEM |
+| `SAVE_FK` | Reuse saved FK boundary wavefields for FK injection. | `True` |
+| `COMPRESS_LEVEL` | HDF5 deflate compression for saved FK files: `0` disables compression; `1`–`9` request increasing compression. | `0` |
+| `SUPPRESS_STF` | In forward-only SAC export, `False` convolves synthetics with `src_rec/STF_{event_name}.sac`; `True` skips that convolution. | `True` |
+| `USE_LOCAL_STF` | Parsed and broadcast, but not used by a processing branch in this revision. | Set explicitly to `False` |
 
-- `INJECTION_TYPE`: Type of wavefield injection method for teleseismic simulation. It can be:
-  - `1` (default) for FK (frequency-wavenumber) injection.
-  - `2` for AxiSEM injection.
+`TELE.IMEAS` and `TELE.USE_RHO_SCALING` are not YAML options in this reader: the teleseismic path selects its own measurement implementation and disables density scaling.
 
-- `AXISEM_BASE_PATH`: Base path to the AxiSEM wavefield database. Only required when `INJECTION_TYPE` is `2`.
+Saved FK files are stored as `{LOCAL_PATH}/FK_wavefield_{event_name}/procXXXXXX_fk_wavefield.h5`, where `LOCAL_PATH` comes from `DATA/Par_file`. Cache validation checks file existence; use a fresh cache when changing the mesh, partitioning, sampling or FK model. See the [FK coupling source][fk].
 
-- `SAVE_FK`: Set to `True` to save the FK wavefield for teleseismic data. Only applicable when `INJECTION_TYPE` is `1` (FK injection). The FK wavefield will be checked in the `LOCAL_PATH` (Set in `DATA/Par_file`) before running the forward simulation. If the FK wavefield is not found, it will be generated and saved in the `LOCAL_PATH/FK_{event_name}` directory, otherwise, it will be loaded from the existing FK wavefield directory to reduce time consumption. It will be useful for GPU acceleration.
-
-- `COMPRESS_LEVEL`: Compression level of the saved FK wavefield in hdf5 format. Only applicable when `INJECTION_TYPE` is `1` (FK injection). Same as `compression_opts` in `h5py.File`. It can be set to `0` (no compression), `1` (fastest), `2`, `3`, `4`, `5`, `6`, `7`, or `9` (best compression). The default value is `0`.
-
-<Callout>
-- The FK wavefield take high disk storage space. Please check the disk space before running the forward simulation.
-- For CPU parallelization, the FK simulation will be very fast due to so many processors. Thus, it is recommended to set `SAVE_FK` to `False` for CPU parallelization.
+<Callout type="info">
+`SUPPRESS_STF` does not disable the internal STF estimation in teleseismic waveform measurement. `USE_LOCAL_STF` currently does not switch that estimator to a supplied STF. These behaviors are distinct in [teleseismic preprocessing][tele]. AxiSEM is exposed by the simulation interface, but the current measurement paths still contain FK travel-time/model dependencies; verify the complete measurement path before using it for inversion.
 </Callout>
-
-- `SUPPRESS_STF`: Whether to suppress source time function convolution when forward simulating teleseismic data. If set to `True` (default), the source time function will **not** be convolved. If set to `False`, the source time function will be convolved, and STF files named `STF_{event_name}.sac` must be prepared in the `src_rec` directory.
-
-- `USE_LOCAL_STF`: Whether to use a per-event (local) source time function file from the `src_rec` directory. When set to `True`, SpecFWAT will look for `STF_{event_name}.sac` for each event individually. The default is `False`.
-
-<Callout>
-The time 0 in the STF should correspond to the onset time of the earthquake. An example is shown below:
-  <Image
-    src="/source-time-function.png"
-    alt="Source Time Function"
-    width={480}
-    height={200}
-    className="mx-auto"
-  />
-  <p className="text-xs text-center text-gray-500 mt-2">Source: SCARDEC Source Time Functions Database</p>
-</Callout>
-
-- `TIME_WIN`: Time window for the teleseismic data. It is a list of two values, which are the start and end time before and after direct P arrival.
-
-- `PRECOND_TYPE`: Type of preconditioning for gradient. `2` ($P_2$) or `3` ($P_3$) are accepted value based on Z-precondition. The default value is `2`.
-
-```math
-  P_2 = |x_z|
-```
-
-```math
-  P_3 = |x_z|^{1/2}
-```
 
 ### Receiver function parameters
-For Receiver function adjoint tomography, the synthetic receiver function is calculated based on the iterative deconvolution method. The following parameters are used to control the receiver function inversion:
 
-- `RF.F0`: Gaussian width for the receiver function. It is a list of values, which are used to filter the data in different frequency bands.
+Keep the `RF` dictionary whenever a `TELE` section is present: the reader accesses it even when `TELE_TYPE` is `1` or `3`. Values are used for iterative deconvolution when receiver functions are calculated.
 
-- `RF.MAXIT`: Maximum number of iterations for the receiver function inversion.
-
-- `RF.MINDERR`: Minimum residual error when the receiver function converges.
-
-- `RF.TSHIFT`: Time shift before P arrival for the receiver function inversion. It is used to align the receiver function with the direct P arrival.
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `RF.F0` | List of Gaussian widths; RF measurements loop over these widths. This is independent of the single teleseismic bandpass. | Set explicitly |
+| `RF.MAXIT` | Maximum iterative-deconvolution iterations. | Set explicitly |
+| `RF.MINDERR` | Stopping tolerance on the change in normalized residual error, expressed as a percentage by the deconvolution routine. | Set explicitly |
+| `RF.TSHIFT` | Time shift applied to the receiver function. | Set explicitly |
 
 ## `LEQ` Section
 
-This section defines the parameters for Local Earthquake adjoint tomography (LEQ).
+Local earthquake adjoint tomography uses `-s leq`, `src_rec/sources_leq.dat` and per-event `CMTSOLUTION` files. The shared solver and gradient parameters have the meanings listed for `NOISE`, with these reader defaults:
 
-```yaml filename="YAML" copy
+| Key | Default |
+| --- | --- |
+| `IMEAS` | `13` (multitaper time shift) |
+| `CH_CODE` | `BX` |
+| `ADJ_SRC_NORM` | `False` |
+| `USE_RHO_SCALING` | `True` |
+
+```yaml filename="fwat_params.yml" copy
 LEQ:
-  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file # Mesh file
-  NSTEP: 3000 # Number of time steps
-  DT: 0.05 # Time step
-  PRECOND_TYPE: 1 # 1: inner product of acceleration
-  IMEAS: 7 # Measurement type (default: IMEAS_CC_TT_MT)
-  RCOMPS: ['Z', 'R', 'T'] # Components of the receiver
-  CH_CODE: BX # Channel code
-  SHORT_P: [2, 5] # Short period of filters
-  LONG_P: [10, 20] # Long period of filters
-  ADJ_SRC_NORM: False # Normalize adjoint sources across bands
-  USE_RHO_SCALING: True # Scale density gradient using velocity gradient
+  MESH_PAR_FILE: DATA/meshfem3D_files/Mesh_Par_file
+  NSTEP: 3000
+  DT: 0.05
+  PRECOND_TYPE: 1
+  IMEAS: 13
+  RCOMPS: ['Z', 'R', 'T']
+  CH_CODE: BX
+  SHORT_P: [2, 5]
+  LONG_P: [10, 20]
+  ADJ_SRC_NORM: False
+  USE_RHO_SCALING: True
   SIGMA_H: 5000
   SIGMA_V: 5000
   WINDOW:
-    WIN_TYPE: 1 # Window selection type (1–4)
-    WIN_TYPE_1:
-      SLIDING_WIN_LEN_FAC: 2.0
-      MIN_VELOCITY: 2.4
-      THRESHOLD_CORR: 0.8
-      THRESHOLD_SHIFT_FAC: 0.3
-      JUMP_FAC: 0.1
-      MIN_WIN_LEN_FAC: 1.5
-      MIN_SNR_WINDOW: 5.0
-      MIN_ENERGY_RATIO: 5.0
-      MIN_PEAKS_TROUGHS: 3
-      IS_SPLIT_PHASES: False
-    WIN_TYPE_2:
-      MIN_VELOCITY: 2.4
-      MIN_WIN_LEN_FAC: 1.5
-      THRESHOLD_CORR: 0.8
-      THRESHOLD_SHIFT_FAC: 2.0
-      MIN_PEAKS_TROUGHS: 3
-      THRESHOLD_DLNA: 1.0
-      MIN_SNR_WINDOW: 5.0
-      IS_SPLIT_PHASES: False
-      MAX_TIME_BEFORE_FIRST_ARRIVAL: 10.0
-      STALTA_WATER_LEVEL: 0.08
-      C_0: 1.0
-      C_2: 0.0
-      C_3A: 4.0
-      C_3B: 2.5
-      C_4A: 2.0
-      C_4B: 6.0
+    WIN_TYPE: 3
     WIN_TYPE_3:
       GROUPVEL_MIN: [2.3, 2.3]
       GROUPVEL_MAX: [3.5, 4.0]
-    WIN_TYPE_4:
-      PHASE: P
-      TIME_WIN: [-5, 45]
 ```
-
-
-### Solver Parameters
-The `MESH_PAR_FILE`, `NSTEP`, `DT`, `RCOMPS`, `CH_CODE`, `SHORT_P`, `LONG_P`, `ADJ_SRC_NORM`, `USE_RHO_SCALING`, `SIGMA_H`, and `SIGMA_V` parameters have the same meaning as in the `NOISE` section.
-
-- `PRECOND_TYPE`: Type of preconditioning for gradient. `0` ($P_0$) or `1` ($P_1$) are accepted.
-
-- `IMEAS`: Measurement type for adjoint sources. The default is `IMEAS_CC_TT_MT` (cross-correlation time shift via multi-taper).
 
 ### `WINDOW` Sub-section
 
-The `WINDOW` sub-section controls how time windows are selected for LEQ adjoint source measurements. The `WIN_TYPE` key selects among four strategies:
+Supply `WINDOW` and the `WIN_TYPE_n` dictionary selected by `WIN_TYPE`. The reader defaults `WIN_TYPE` to `1` within an existing `WINDOW` section; this still requires `WIN_TYPE_1`.
 
-- `WIN_TYPE`:
-  - `1` (`WIN_SELECTOR_TYPE`): Automated FLEXWIN-style selector.
-  - `2` (`WIN_FLEX_TYPE`): Flexible window with STALTA-based criteria.
-  - `3` (`WIN_GROUPVEL_TYPE`): Group-velocity based window.
-  - `4` (`WIN_ARRIVAL_TYPE`): Arrival-time based window with a fixed time window around a named phase.
+| `WIN_TYPE` | Selector | Required nested dictionary |
+| --- | --- | --- |
+| `1` | Sliding cross-correlation selector with correlation, shift, length, SNR and observed/synthetic energy tests. | `WIN_TYPE_1` |
+| `2` | FLEXWIN-style STA/LTA selector and waveform-quality tests. | `WIN_TYPE_2` |
+| `3` | Group-velocity window, using the same formula as noise. | `WIN_TYPE_3` |
+| `4` | Fixed window around a predicted named phase. | `WIN_TYPE_4` |
 
-#### WIN_TYPE = 1 — Automated Selector (`WIN_TYPE_1`)
+For types `1` and `2`, the reference phase is fixed to `P`. Period factors below refer to the band's **short-period cutoff** (`SHORT_P`), not an independently estimated dominant period. `MIN_VELOCITY` sets the late end of the search interval.
 
-```yaml filename="YAML" copy
+#### WIN_TYPE = 1
+
+These are the explicit YAML-reader defaults for `WIN_TYPE_1`:
+
+```yaml copy
 WINDOW:
   WIN_TYPE: 1
   WIN_TYPE_1:
-    SLIDING_WIN_LEN_FAC: 2.0   # Sliding window length factor (relative to dominant period)
-    MIN_VELOCITY: 2.4          # Minimum group velocity (km/s) for initial window
-    THRESHOLD_CORR: 0.8        # Minimum cross-correlation coefficient to accept a window
-    THRESHOLD_SHIFT_FAC: 0.3   # Maximum allowable time shift factor
-    JUMP_FAC: 0.1              # Jump factor for discontinuous windows
-    MIN_WIN_LEN_FAC: 1.5       # Minimum window length factor
-    MIN_SNR_WINDOW: 5.0        # Minimum signal-to-noise ratio within window
-    MIN_ENERGY_RATIO: 5.0      # Minimum energy ratio between signal and noise
-    MIN_PEAKS_TROUGHS: 3       # Minimum number of peaks/troughs in window
-    IS_SPLIT_PHASES: False     # Whether to split windows at phase arrivals
+    SLIDING_WIN_LEN_FAC: 2.0
+    MIN_VELOCITY: 2.4
+    THRESHOLD_CORR: 0.8
+    THRESHOLD_SHIFT_FAC: 0.3
+    JUMP_FAC: 0.1
+    MIN_WIN_LEN_FAC: 1.5
+    MIN_SNR_WINDOW: 5.0
+    MIN_ENERGY_RATIO: 5.0
+    MIN_PEAKS_TROUGHS: 3
+    IS_SPLIT_PHASES: False
 ```
 
-- `SLIDING_WIN_LEN_FAC`: Length of the sliding window as a factor of the dominant period. Default `2.0`.
-- `MIN_VELOCITY`: Minimum group velocity in km/s used to determine the earliest onset of the time window. Default `2.4`.
-- `THRESHOLD_CORR`: Minimum cross-correlation coefficient between observed and synthetic waveforms to accept a window. Default `0.8`.
-- `THRESHOLD_SHIFT_FAC`: Maximum allowable time-shift as a fraction of the dominant period. Default `0.3`.
-- `JUMP_FAC`: Factor controlling merging of adjacent windows. Default `0.1`.
-- `MIN_WIN_LEN_FAC`: Minimum window length as a factor of the dominant period. Default `1.5`.
-- `MIN_SNR_WINDOW`: Minimum signal-to-noise ratio required within the window. Default `5.0`.
-- `MIN_ENERGY_RATIO`: Minimum ratio of signal energy to noise energy. Default `5.0`.
-- `MIN_PEAKS_TROUGHS`: Minimum number of peaks and troughs within the window. Default `3`.
-- `IS_SPLIT_PHASES`: Whether to split windows at predicted phase arrivals. Default `False`.
+`SLIDING_WIN_LEN_FAC` sets sliding-window length. `THRESHOLD_CORR` is the minimum correlation and `THRESHOLD_SHIFT_FAC` limits absolute time shift. `JUMP_FAC` sets the buffer for grouping windows. `MIN_WIN_LEN_FAC` and `MIN_PEAKS_TROUGHS` reject short or featureless windows. `MIN_SNR_WINDOW` sets the amplitude-to-noise threshold. Despite its name, `MIN_ENERGY_RATIO` bounds the **observed/synthetic** window-energy ratio to `[1/value, value]`; it is not a signal/noise energy threshold. `IS_SPLIT_PHASES` enables the selector's window-splitting step.
 
-#### WIN_TYPE = 2 — Flexible Window (`WIN_TYPE_2`)
+#### WIN_TYPE = 2
 
-```yaml filename="YAML" copy
+These are the explicit YAML-reader defaults for `WIN_TYPE_2`:
+
+```yaml copy
 WINDOW:
   WIN_TYPE: 2
   WIN_TYPE_2:
@@ -318,136 +256,98 @@ WINDOW:
     C_4B: 6.0
 ```
 
-- `MIN_VELOCITY`, `MIN_WIN_LEN_FAC`, `THRESHOLD_CORR`, `MIN_PEAKS_TROUGHS`, `MIN_SNR_WINDOW`, `IS_SPLIT_PHASES`: Same meaning as in `WIN_TYPE_1`.
-- `THRESHOLD_SHIFT_FAC`: Maximum allowable time-shift factor. Default `2.0` (larger than in the selector type).
-- `THRESHOLD_DLNA`: Maximum allowable logarithmic amplitude difference. Default `1.0`.
-- `MAX_TIME_BEFORE_FIRST_ARRIVAL`: Maximum time (seconds) before the first predicted arrival to start the window. Default `10.0`.
-- `STALTA_WATER_LEVEL`: Water level for the STA/LTA ratio. Default `0.08`.
-- `C_0`, `C_2`, `C_3A`, `C_3B`, `C_4A`, `C_4B`: FLEXWIN-style tuning coefficients for the water-level criteria. Defaults: `1.0`, `0.0`, `4.0`, `2.5`, `2.0`, `6.0`.
+The shared thresholds have the meanings above. `THRESHOLD_DLNA` bounds logarithmic amplitude difference; `MAX_TIME_BEFORE_FIRST_ARRIVAL` sets how far before the P arrival the search can start. `STALTA_WATER_LEVEL` and the `C_*` coefficients tune the STA/LTA-based criteria. Consult the [selector implementations][windows] when adjusting these coefficients.
 
-#### WIN_TYPE = 3 — Group Velocity Window (`WIN_TYPE_3`)
+#### WIN_TYPE = 3
 
-```yaml filename="YAML" copy
-WINDOW:
-  WIN_TYPE: 3
-  WIN_TYPE_3:
-    GROUPVEL_MIN: [2.3, 2.3] # Minimum group velocity per filter band
-    GROUPVEL_MAX: [3.5, 4.0] # Maximum group velocity per filter band
-```
+Provide one `GROUPVEL_MIN` and `GROUPVEL_MAX` per filter band, as in the LEQ example. Their lengths must equal `SHORT_P`'s length. Keep `LONG_P` the same length as `SHORT_P` as well.
 
-- `GROUPVEL_MIN`: List of minimum group velocities (km/s), one per filter band defined by `SHORT_P`/`LONG_P`.
-- `GROUPVEL_MAX`: List of maximum group velocities (km/s), one per filter band.
+#### WIN_TYPE = 4
 
-#### WIN_TYPE = 4 — Arrival-based Window (`WIN_TYPE_4`)
-
-```yaml filename="YAML" copy
+```yaml copy
 WINDOW:
   WIN_TYPE: 4
   WIN_TYPE_4:
-    PHASE: P          # Phase name for arrival time calculation
-    TIME_WIN: [-5, 45] # Time window relative to the phase arrival [start, end] in seconds
+    PHASE: P
+    TIME_WIN: [-5, 45]
 ```
 
-- `PHASE`: Name of the seismic phase to use as the reference arrival (e.g. `P`, `S`). Default `P`.
-- `TIME_WIN`: Two-element list specifying the start and end of the window in seconds relative to the predicted phase arrival.
+`PHASE` defaults to `P`. Set `TIME_WIN` explicitly to two offsets in seconds around the predicted arrival. Use a phase supported by the compiled travel-time tables. Windows are clipped to the simulation interval.
 
 ## `ADJOINT_SOURCE` Section
 
-SpecFWAT employs [*ForAdjoint*](https://github.com/xumi1993/ForAdjoint) to measure adjoint sources of **ambient noise** and **local earthquakes**, which provides built-in measurement methods including:
-- cross-correlation time shift and amplitude ratio
-- waveform difference
-- multi-taper phase shift and amplitude ratio
-- Cross-convolution waveform difference
-- Receiver function difference
-- Exponentiated phase misfit
+This section configures the built-in measurement routines. Include the full section from the downloadable example so that the intended taper and acceptance/error thresholds are explicit. The old external `measure_adj` numbering is not the current SpecFWAT measurement API.
 
-```yaml filename="YAML" copy
-ADJOINT_SOURCE:
-  ITAPER_TYPE: 1 # 1: Hanning, 2: Hamming, 3: Cosine, 4: Cosine P10:
-  TAPER_PERCENTAGE: 0.3
-  CC:
-    TSHIFT_LIM: [-5.0, 5.0]
-    DLNA_LIM: [-1.5, 1.5]
-    CC_MIN: 0.7
-    DT_SIGMA_MIN: 1.0
-    DLNA_SIGMA_MIN: 0.5
-  MT:
-    NUM_TAPER: 5
-    MT_NW: 4.0
-    PHASE_STEP: 1.5
-    TRANSFUNC_WATERLEVEL: 1e-10
-    WATER_THRESHOLD: 0.02
-    DT_FAC: 2.0
-    ERR_FAC: 2.5
-    DT_MAX_SCALE: 3.5
-    MIN_CYCLE_IN_WINDOW: 3
-    USE_MT_ERROR: False
-  ENV:
-    WTR_ENV: 0.2
-```
-### Adjoint Source Tapering
-- `ITAPER_TYPE`: Type of tapering window for the adjoint source measurements. It can be
-  - `1` for Hanning window.
-  - `2` for Hamming window.
-  - `3` for Cosine window.
-  - `4` for Cosine P10 window.
-- `TAPER_PERCENTAGE`: Percentage of the tapering window. It is used to determine the length of the tapering window based on the total length of the time window.
+### Supported measurements
 
-### Cross-correlation (CC) Measurement Parameters
-  - `CC.TSHIFT_LIM`: Time shift limits in seconds for cross-correlation measurement.
-  - `CC.DLNA_LIM`: Logarithmic amplitude ratio limits for cross-correlation measurement.
-  - `CC.CC_MIN`: Minimum cross-correlation coefficient to accept a measurement.
-  - `CC.DT_SIGMA_MIN`: Minimum standard deviation of time shift measurement in seconds.
-  - `CC.DLNA_SIGMA_MIN`: Minimum standard deviation of logarithmic amplitude ratio.
-### Multi-taper (MT) Measurement Parameters
-  - `MT.NUM_TAPER`: Number of tapers to use in multi-taper measurement.
-  - `MT.MT_NW`: bin width of multitapers (nw*df is the half
-        bandwidth of multitapers in frequency domain,
-        typical values are 2.5, 3., 3.5, 4.0)
-  - `MT.PHASE_STEP`:  maximum step for cycle skip correction .
-  - `MT.TRANSFUNC_WATERLEVEL`: Waterlevel for the transfer function in multi-taper measurement.
-  - `MT.WATER_THRESHOLD`: The triggering value to stop the search. If
-        the spectra is larger than 10*water_threshold it will trigger the
-        search again, works like the heating thermostat.
-  - `MT.DT_FAC`: percentage of wave period at which measurement range is
-        too large and MTM reverts to CCTM misfit.
-  - `MT.ERR_FAC`: percentage of error at which error is too large.
-  - `MT.DT_MAX_SCALE`: Used to calculate maximum allowable time shift
-  - `MT.MIN_CYCLE_IN_WINDOW`: Minimum number of cycles in the time window for multi-taper measurement.
-  - `MT.USE_MT_ERROR`: Whether to use multi-taper error for normalization.
-### Envelope (ENV) Measurement Parameters
-  - `ENV.WTR_ENV`: Waterlevel for envelope measurement.
+The general noise/LEQ dispatcher accepts the following values:
+
+| `IMEAS` | Measurement |
+| --- | --- |
+| `1` | Waveform difference |
+| `4` | Exponentiated phase misfit |
+| `5` | Cross-correlation coefficient misfit |
+| `11` | Cross-correlation time shift |
+| `12` | Cross-correlation logarithmic amplitude ratio |
+| `13` | Multitaper time shift, with cross-correlation fallback when MT quality criteria fail |
+| `14` | Multitaper logarithmic amplitude ratio, with cross-correlation fallback |
+
+The constants also define `2` for waveform convolution and `3` for receiver functions, but the general noise/LEQ dispatcher stops if either is selected; they require specialized multicomponent routines. Select teleseismic receiver functions or cross-convolution through **`TELE_TYPE: 2` or `3`**, respectively. `TELE_TYPE` numbers and `IMEAS` numbers are different settings.
+
+### Taper and cross-correlation settings
+
+| Key | Meaning | Default / requirement |
+| --- | --- | --- |
+| `ITAPER_TYPE` | `1`: Hanning; `2`: Hamming; `3`: cosine; `4`: cosine to the tenth power. | Set explicitly when `ADJOINT_SOURCE` is present |
+| `TAPER_PERCENTAGE` | Fraction controlling taper length within each measurement window. | `0.3` |
+| `CC.TSHIFT_LIM` | Two time-shift acceptance bounds. | Retains `[-5, 5]` when absent |
+| `CC.DLNA_LIM` | Two logarithmic-amplitude acceptance bounds. | Retains `[-1.5, 1.5]` when absent |
+| `CC.CC_MIN` | Minimum accepted correlation coefficient. | Set explicitly when `CC` is present |
+| `CC.DT_SIGMA_MIN` | Floor for time-shift uncertainty. | Set explicitly when `CC` is present |
+| `CC.DLNA_SIGMA_MIN` | Floor for logarithmic-amplitude uncertainty. | Set explicitly when `CC` is present |
+
+### Multitaper and envelope settings
+
+The following defaults are supplied when the `MT`/`ENV` dictionaries are present:
+
+| Key | Meaning | Reader default |
+| --- | --- | --- |
+| `MT.NUM_TAPER` | Number of tapers. | `5` |
+| `MT.MT_NW` | Time-bandwidth parameter; half-bandwidth is `MT_NW * df`. | `4.0` |
+| `MT.PHASE_STEP` | Phase-jump threshold used for cycle-skip correction. | `1.5` |
+| `MT.TRANSFUNC_WATERLEVEL` | Transfer-function water level. | `1e-10` |
+| `MT.WATER_THRESHOLD` | Spectral selection threshold. | `0.02` |
+| `MT.DT_FAC` | Period-scaled limit used for multitaper acceptance. | `2.0` |
+| `MT.ERR_FAC` | Error threshold used for multitaper acceptance. | `2.0` |
+| `MT.DT_MAX_SCALE` | Scale in the maximum permitted shift calculation. | `3.5` |
+| `MT.MIN_CYCLE_IN_WINDOW` | Minimum cycles in a measurement window. | `3` |
+| `MT.USE_MT_ERROR` | Use multitaper error estimates in weighting. | `False` |
+| `ENV.WTR_ENV` | Water level used by the envelope-based calculation. | `0.2` |
+
+`MT.ERR_FAC` is a source-level inconsistency: omitting it from an existing `MT` dictionary uses **`2.0`**, while omitting the dictionary retains the `ADJConfig` initializer **`2.5`**. The example sets `2.5` explicitly, matching the bundled measurement examples. Do not treat initialized type values as identical to all YAML-reader defaults.
 
 ## `MODEL_GRID` Section
 
-SpecFWAT update model parameters on a regular grid, which is easily to take sum of gradients of different data sets with different mesh. The size of each regular grid should be small to ensure the accuracy of gradient information. We recommended set the size of each regular grid to be at least half of element size of the mesh. 
+The regular grid is the common space for model updates and for combining gradients from different simulation meshes.
 
-```yaml filename="YAML" copy
+```yaml copy
 MODEL_GRID:
   REGULAR_GRID_MIN_COORD: [833950, -44274.0, -80000]
   REGULAR_GRID_INTERVAL: [2000, 2000, 1000]
   REGULAR_GRID_SIZE: [104, 48, 81]
 ```
 
-- `REGULAR_GRID_MIN_COORD`: Minimum coordinate of the regular grid in meter. It is a list of three values, which are the minimum x, y, and z coordinates of the regular grid.
+Set all three vectors explicitly, with exactly three entries each. `REGULAR_GRID_MIN_COORD` is the first `[x,y,z]` point; `REGULAR_GRID_INTERVAL` is positive point spacing; `REGULAR_GRID_SIZE` is the number of points. The maximum coordinate along each axis is `min + (size - 1) * interval`.
 
-- `REGULAR_GRID_INTERVAL`: Interval of the regular grid in meter. It is a list of three values, which are the interval in x, y, and z directions.
-
-- `REGULAR_GRID_SIZE`: Number of regular grid. It is a list of three values, which are the number of grid points in x, y, and z directions.
-
-<Callout>
-  the region of the regular grid must cover the whole mesh region. the minimum coordinate of the regular grid should be less than the minimum coordinate of the mesh, and the maximum coordinate of the regular grid should be greater than the maximum coordinate of the mesh.
-</Callout>
+Choose spacing fine enough to retain the mesh-resolved gradient. Ensure the grid covers the meshes used by all enabled data types. The [model preparation page](/docs/preparation/model) describes the HDF5 model format.
 
 ## `POSTPROC` Section
 
-This section defines the common parameters for the post-processing of the gradient after the adjoint simulation.
-
-```yaml filename="YAML" copy
+```yaml copy
 POSTPROC:
-  INV_TYPE: [False, True, False] # Inversion type of noise, teleseismic, and other data
+  INV_TYPE: [False, True, False]
   JOINT_WEIGHT: [0.5, 1.0, 0.5]
-  NORM_TYPE: 1 # Normalization type of gradient (1: default)
+  NORM_TYPE: 1
   TAPER_H_SUPPRESS: 5000
   TAPER_H_BUFFER: 15000
   TAPER_V_SUPPRESS: 0
@@ -455,91 +355,98 @@ POSTPROC:
   IS_PRECOND: False
 ```
 
-- `INV_TYPE`: Inversion type for each data type. It is a list of three boolean values controlling inversion of noise, teleseismic, and a third data type respectively.
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `INV_TYPE` | Enable gradient processing for `[noise, tele, leq]`; enable at least one. More than one activates joint inversion. | Set explicitly |
+| `JOINT_WEIGHT` | Relative weights of the normalized type gradients, in the same order. | Set explicitly |
+| `NORM_TYPE` | Joint normalization: `1` reference-gradient infinity norm; `2` reference total misfit; `3` reference-gradient standard deviation. | `1` |
+| `TAPER_H_SUPPRESS`, `TAPER_V_SUPPRESS` | Horizontal/vertical boundary regions where the gradient is suppressed. | `0` |
+| `TAPER_H_BUFFER`, `TAPER_V_BUFFER` | Widths over which the boundary taper transitions. | `0` |
+| `IS_PRECOND` | `True`: precondition kernels before smoothing. `False`: save `optimize/hess_inv_Mxx.h5` for optimizer direction scaling. | Set explicitly |
 
-- `JOINT_WEIGHT`: Weight for each data type in a joint inversion. It is a list of three values used to scale the gradient contribution of each data type.
+For joint inversion, the [post-processing implementation][post] forms `sum(JOINT_WEIGHT[type] * gradient[type] / reference_scale[type])`. These weights do not have to sum to one. In a single-type inversion, the joint normalization/weighting step is skipped.
 
-- `NORM_TYPE`: Normalization type applied to the gradient during post-processing. The default value is `1`.
+For L-BFGS (`OPT_METHOD: 2`), reference scales come from the iteration named by `ITER_START`; for SD and CG they come from `M00`. Preserve the corresponding per-type gradients or misfits. Reference scales must be nonzero. Boundary tapers are particularly important for teleseismic updates to preserve consistency with the external injection model.
 
-- `TAPER_H_SUPPRESS`: Horizontal tapering length in meter to suppress the gradient at the margin of the mesh.
-- `TAPER_H_BUFFER`: Horizontal tapering length in meter to buffer the gradient at the margin of the mesh.
-- `TAPER_V_SUPPRESS`: Vertical tapering length in meter to suppress the gradient at the margin of the mesh. 
-- `TAPER_V_BUFFER`: Vertical tapering length in meter to buffer the gradient at the margin of the mesh.
-
-<Callout>
- The taper on gradient is necessary for teleseismic FWAT to avoid updating margin of the model. It guarantees SEM domain of updated model coupling with the FK domain with iterations.
-</Callout>
-
-- `IS_PRECOND`: Whether directly apply preconditioning to the gradient. If set to `False`, the preconditioner will be saved and apply on L-BFGS as rescale vector ([Modrak and Tromp 2016](https://academic.oup.com/gji/article-lookup/doi/10.1093/gji/ggw202)).
+With `IS_PRECOND: False`, SD, CG and L-BFGS use the saved scaling field; it is not exclusive to L-BFGS. In a joint inversion the current code saves this field from the **teleseismic** branch, skipping noise and LEQ. For a noise+LEQ joint inversion without TELE, use direct preconditioning (`IS_PRECOND: True`) or resolve that implementation limitation before running. See [Inversion Strategy](/docs/inversion/strategy) for joint-inversion and line-search limitations.
 
 ## `MODEL_UPDATE` Section
 
-This section defines the parameters for the model update based on the gradient and optimization method.
-
-```yaml filename="YAML" copy
+```yaml copy
 MODEL_UPDATE:
   INIT_MODEL_PATH: initial_model.h5
-  MODEL_TYPE: 1 # 1: vp,vs,rho; 2: L,N,Gc,Gs
-  MODEL_TYPE_2: # Only required when MODEL_TYPE=2
-    ALT_INV: False # Alternating inversion flag
-    CURRENT_INV_TYPE: 1 # Current inversion type (1 or 2)
-  OPT_METHOD: 2 # Optimization method, 1: SD; 2: LBFGS 
+  MODEL_TYPE: 1
+  OPT_METHOD: 2
   ITER_START: 0
   LBFGS_M_STORE: 5
-  MAX_SLEN: 0.02 # Maximum step length
-  MAX_SHRINK: 0.618 # Maximum shrink factor
+  MAX_SLEN: 0.02
+  MAX_SHRINK: 0.618
   MAX_SUB_ITER: 10
-  DO_LS: False # Do line search
+  DO_LS: False
   C1: 0.01
-  VPVS_RATIO_RANGE: [1.3, 2.5] # Min and max limitation of Vp/Vs ratio
+  VPVS_RATIO_RANGE: [1.3, 2.5]
 ```
 
-- `INIT_MODEL_PATH`: Path to the initial model file. It should be a HDF5 file with the same format as `DATA/tomo_files/tomography_model.h5`, but the size could be different from the `MODEL_GRID` section. An interpolation will be performed to interpolate `INIT_MODEL_PATH` to `MODEL_GRID` size and save to `optimize/model_M00.h5`.
+| Key | Meaning | Default |
+| --- | --- | --- |
+| `INIT_MODEL_PATH` | Initial HDF5 model, interpolated onto `MODEL_GRID` at `M00` and saved to `optimize/model_M00.h5`. | Set explicitly |
+| `MODEL_TYPE` | `1`: `vp, vs, rho`; `2`: `vp, vs, rho, gcp, gsp`. | `1` |
+| `OPT_METHOD` | `1`: steepest descent; `2`: L-BFGS; `3`: conjugate gradient. | Set explicitly |
+| `ITER_START` | First iteration of the current optimizer-history stage. The iteration passed with `-m Mxx` must not be smaller. | Set explicitly |
+| `LBFGS_M_STORE` | Maximum previous iteration pairs used by L-BFGS. | Set explicitly |
+| `MAX_SLEN` | Initial trial step, or fixed step with `DO_LS: False`, for a direction normalized to unit maximum absolute value. | Set explicitly |
+| `MAX_SHRINK` | Multiplicative reduction applied after a failed backtracking trial; choose between zero and one. | Set explicitly |
+| `MAX_SUB_ITER` | Maximum number of line-search trials. Exhausting it aborts optimization. | Set explicitly |
+| `DO_LS` | Recompute forward measurements and backtrack when `True`; otherwise use the fixed step. | Set explicitly |
+| `C1` | Sufficient-decrease coefficient in the backtracking acceptance test. | `0.01` |
+| `VPVS_RATIO_RANGE` | Exactly two bounds on `vp/vs`. The update clips `vp` to enforce these bounds. | Set explicitly |
 
-- `MODEL_TYPE`: Type of model parameters to be updated. It can be
-  - `1` for updating $Vp$, $Vs$, and $\rho$.
-  - `2` for updating azimuthal anisotropic parameters ($Vp$, $Vs$, $\rho$, $L$, $N$, $Gc'$, and $Gs'$).
+Velocity and density updates are multiplicative: `m_new = m * exp(step * direction)`. Thus `MAX_SLEN: 0.02` permits about a 2% change before ratio clipping for an active isotropic parameter at the largest direction amplitude. The anisotropic `gcp/gsp` updates are additive. Successful optimization writes the next model both to `optimize/model_Mxx.h5` and to `{TOMOGRAPHY_PATH}/tomography_model.h5` for the next mesh/database generation (`TOMOGRAPHY_PATH` is configured in `DATA/Par_file`, commonly `DATA/tomo_files/`).
 
-- `MODEL_TYPE_2`: Sub-section required only when `MODEL_TYPE` is `2`. Contains:
-  - `ALT_INV`: Whether to use alternating inversion (alternate between isotropic and anisotropic updates). Default `False`.
-  - `CURRENT_INV_TYPE`: Current inversion type for alternating inversion. Accepts `1` or `2`. Default `1`.
+`ITER_START` does not set the shell loop's starting index. It sets the history boundary: L-BFGS and CG use steepest descent at that iteration. When changing filters, data, weights or parameter blocks, start a new stage deliberately and retain the corresponding model and reference files. There is no YAML iteration scheduler in this revision.
 
-- `OPT_METHOD`: Optimization method for model update. It can be
-  - `1` for steepest descent (SD).
-  - `2` for L-BFGS.
-  - `3` for conjugate gradient (CG).
+### Azimuthal anisotropy and alternating updates
 
-- `ITER_START`: Starting iteration number of L-BFGS optimization.
-- `LBFGS_M_STORE`: Number of previous iterations to store in L-BFGS optimization.
-- `MAX_SLEN`: Maximum step length for model update.
-- `MAX_SHRINK`: Maximum shrink factor for model update. It is used to control the step length reduce when the model update does not decrease the objective function.
-- `MAX_SUB_ITER`: Maximum number of sub-iterations for model update.
-- `DO_LS`: Whether to perform line search for model update. If set to `True`, the line search will be performed to find the optimal step length for model update, otherwise, the step length will be fixed to `MAX_SLEN`. The default value is `False`.
-- `C1`: Constant for the Armijo condition in line search. It is used to determine whether the step length is sufficient to decrease the objective function. The default value is `0.01`.
+For `MODEL_TYPE: 2`, include this additional dictionary:
+
+```yaml copy
+MODEL_UPDATE:
+  MODEL_TYPE: 2
+  MODEL_TYPE_2:
+    ALT_INV: True
+    CURRENT_INV_TYPE: 1
+  # Include the remaining MODEL_UPDATE entries shown above.
+```
+
+`ALT_INV` defaults to `False`, which updates all five parameters. With `ALT_INV: True`, `CURRENT_INV_TYPE: 1` updates only `vp/vs/rho`, and `2` updates only `gcp/gsp`; its default is `1`. The driver does **not** change `CURRENT_INV_TYPE` automatically. The stored model uses the normalized azimuthal parameters `gcp/gsp`, not independent `L, N, Gc, Gs` fields. Prepare `/gcp` and `/gsp` explicitly with the same array shape as `/vp` (zero arrays for an isotropic starting model). The initializer attempts a zero fallback when they are missing, but constructs that fallback on the inversion-grid dimensions; it is unsafe to rely on it when the input model uses different axes or dimensions.
+
+<Callout type="warning">
+The current temporary-model construction used by line search does not preserve the inactive block when alternating updates are enabled. Use fixed steps (`DO_LS: False`) for this configuration until that code path is corrected. Review the [strategy and implementation limits](/docs/inversion/strategy) before enabling line search, especially for joint inversion.
+</Callout>
+
+The [optimizer implementation][optimizer] is the authority for update formulas and history behavior.
 
 ## `OUTPUT` Section
 
-This section controls the verbose output of the SpecFWAT workflow
+All six flags default to **`False`** when omitted from the required `OUTPUT` dictionary. The downloadable example turns several on for inspection.
 
-```yaml filename="YAML" copy
-OUTPUT:
-  IS_OUTPUT_PREPROC: True # Output preprocessed data
-  IS_OUTPUT_ADJ_SRC: True # Output adjoint sources
-  IS_OUTPUT_EVENT_KERNEL: True # Output kernels
-  IS_OUTPUT_SUM_KERNEL: True # Output sum of kernels
-  IS_OUTPUT_INV_GRID: False # Output inverse grid
-  IS_OUTPUT_DIRECTION: True
-```
+| Flag | Effect when `True` |
+| --- | --- |
+| `IS_OUTPUT_PREPROC` | Write preprocessed observed/synthetic SAC diagnostics under `solver/{model}.{dat_type}/{event}/OUTPUT_FILES/`. |
+| `IS_OUTPUT_ADJ_SRC` | Write per-band SAC adjoint-source diagnostics under the event `SEM/` directory. This flag does not disable the adjoint sources required by the solver. |
+| `IS_OUTPUT_EVENT_KERNEL` | Retain per-event `EKERNEL/` files after post-processing. Retain them when planning to repeat kernel summation. |
+| `IS_OUTPUT_SUM_KERNEL` | Write summed GLL kernels under `optimize/SUM_KERNELS_{model}/`, or `optimize/SUM_KERNELS_{model}_{simu_type}/` in joint inversion. |
+| `IS_OUTPUT_INV_GRID` | Parsed and broadcast, but no output operation uses this flag in this revision. |
+| `IS_OUTPUT_DIRECTION` | Write `optimize/direction_{model}.h5`. |
 
-- `IS_OUTPUT_PREPROC`: Whether to output the preprocessed data in SAC format. If set to `True`, the preprocessed data will be saved in the `solver/{model}.{simu_type}/{event_name}/OUTPUT_FILES/` directory. 
+Model and regular-grid gradient files needed by optimization are written independently of these diagnostic flags. With `DO_LS: True`, summed kernels are also written even if `IS_OUTPUT_SUM_KERNEL` is `False`.
 
-- `IS_OUTPUT_ADJ_SRC`: Whether to output the adjoint sources in SAC format. If set to `True`, the adjoint sources will be saved in the `solver/{model}.{simu_type}/{event_name}/SEM/` directory.
-
-- `IS_OUTPUT_EVENT_KERNEL`: Whether to output the kernels for each event. If set to `True`, the kernels will be kept in the `solver/{model}.{simu_type}/{event_name}/EKERNEL/` directory, otherwise, the kernels will be deleted after the post-processing step.
-
-- `IS_OUTPUT_SUM_KERNEL`: Whether to output the sum of kernels after post-processing. If set to `True`, the sum of kernels will be saved in the `optimize/SUM_KERNEL_{model}/` directory.
-
-- `IS_OUTPUT_INV_GRID`: Whether to output the inverse grid. If set to `True`, the inverse grid will be saved in the `optimize/` directory.
-
-- `IS_OUTPUT_DIRECTION`: Whether to output the final descent direction of each iteration. If set to `True`, the direction will be saved in the `optimize/` directory.
-
+[reader]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/input_params.f90
+[constants]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/config.f90
+[dispatcher]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/adjoint_sources/adjoint_source.f90
+[noise]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/noise_data.f90
+[tele]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/tele_data.f90
+[fk]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/shared/fk_coupling.f90
+[windows]: https://github.com/CompSeismoUT/SpecFWAT/tree/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/preproc/window_selector
+[post]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/postproc/post_processing.f90
+[optimizer]: https://github.com/CompSeismoUT/SpecFWAT/blob/39a9a9b5b7b4cf55b6b327bc90b7ef4f1b6607c5/src/optimization/optimize_grid.f90
